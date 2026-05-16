@@ -26,12 +26,25 @@ const TEST_CONFIG: ResolvedConfig = {
 };
 
 function getAuthKey(provider: string): string | undefined {
+  if ((provider === "opencode" || provider === "opencode-go") && process.env.OPENCODE_API_KEY) {
+    return process.env.OPENCODE_API_KEY;
+  }
+
   try {
     const authPath = path.join(os.homedir(), ".pi", "agent", "auth.json");
     const raw = fs.readFileSync(authPath, "utf-8");
     const auth = JSON.parse(raw);
     if (auth[provider]?.type === "api_key") {
       return auth[provider].key;
+    }
+    if (auth[provider]?.type === "oauth" && typeof auth[provider].access === "string") {
+      return auth[provider].access;
+    }
+
+    // opencode and opencode-go share the same OpenCode API key in pi auth.
+    const fallbackProvider = provider === "opencode" ? "opencode-go" : provider === "opencode-go" ? "opencode" : undefined;
+    if (fallbackProvider && auth[fallbackProvider]?.type === "api_key") {
+      return auth[fallbackProvider].key;
     }
   } catch {
     // ignore — will skip
@@ -133,6 +146,7 @@ const MODELS_TO_TEST = [
   { provider: "opencode-go", id: "minimax-m2.7" },
   { provider: "opencode-go", id: "qwen3.5-plus" },
   { provider: "opencode-go", id: "qwen3.6-plus" },
+  { provider: "openai-codex", id: "gpt-5.4-mini" },
 ];
 
 describe.skipIf(!E2E_ENABLED)("classifier E2E — real model round-trips", () => {
