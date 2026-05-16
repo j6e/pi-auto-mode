@@ -1,4 +1,4 @@
-import type { AutoModeSettings, ResolvedConfig, PermissionMode } from "./types";
+import type { AutoModeSettings, ResolvedConfig, PermissionMode, ClassifierToolMode } from "./types";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -7,6 +7,25 @@ const DEFAULT_MODE: PermissionMode = "off";
 const DEFAULT_MAX_CONSECUTIVE = 3;
 const DEFAULT_MAX_TOTAL = 20;
 const DEFAULT_CLASSIFIER_TIMEOUT_MS = 3000;
+const DEFAULT_CLASSIFIER_TOOL_MODE: ClassifierToolMode = "force";
+
+const DEFAULT_PROTECTED_PATHS = [
+  ".git/",
+  ".env",
+  ".env.",
+  ".pi/",
+  "node_modules/",
+  "~/.bashrc",
+  "~/.zshrc",
+  "~/.ssh/",
+];
+
+const DEFAULT_TOOLS = {
+  alwaysAllow: ["read", "grep", "find", "ls"],
+  allowInProject: ["write", "edit"],
+  alwaysEvaluate: [],
+  alwaysBlock: [],
+};
 
 const BUILTIN_DEFAULTS = {
   environment: [
@@ -58,11 +77,15 @@ function sanitizeNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function isValidClassifierToolMode(value: unknown): value is ClassifierToolMode {
+  return value === "force" || value === "required" || value === "auto";
+}
+
 export function resolveConfig(
   globalSettings?: AutoModeSettings,
   projectSettings?: AutoModeSettings,
 ): ResolvedConfig {
-  const merged: AutoModeSettings = {
+  const merged: ResolvedConfig = {
     defaultMode: DEFAULT_MODE,
     classifier: {
       model: null,
@@ -72,11 +95,14 @@ export function resolveConfig(
       softDeny: ["$defaults"],
       allow: ["$defaults"],
       timeoutMs: DEFAULT_CLASSIFIER_TIMEOUT_MS,
+      toolMode: DEFAULT_CLASSIFIER_TOOL_MODE,
     },
     denyAndContinue: {
       maxConsecutiveDenials: DEFAULT_MAX_CONSECUTIVE,
       maxTotalDenials: DEFAULT_MAX_TOTAL,
     },
+    tools: { ...DEFAULT_TOOLS },
+    protectedPaths: [...DEFAULT_PROTECTED_PATHS],
   };
 
   function mergeLayer(settings: AutoModeSettings | undefined) {
@@ -102,6 +128,9 @@ export function resolveConfig(
       if (typeof settings.classifier.timeoutMs === "number" && Number.isFinite(settings.classifier.timeoutMs)) {
         merged.classifier.timeoutMs = settings.classifier.timeoutMs;
       }
+      if (isValidClassifierToolMode(settings.classifier.toolMode)) {
+        merged.classifier.toolMode = settings.classifier.toolMode;
+      }
     }
     if (settings.denyAndContinue) {
       merged.denyAndContinue.maxConsecutiveDenials = sanitizeNumber(
@@ -112,6 +141,15 @@ export function resolveConfig(
         settings.denyAndContinue.maxTotalDenials,
         DEFAULT_MAX_TOTAL,
       );
+    }
+    if (settings.tools) {
+      if (Array.isArray(settings.tools.alwaysAllow)) merged.tools.alwaysAllow = settings.tools.alwaysAllow;
+      if (Array.isArray(settings.tools.allowInProject)) merged.tools.allowInProject = settings.tools.allowInProject;
+      if (Array.isArray(settings.tools.alwaysEvaluate)) merged.tools.alwaysEvaluate = settings.tools.alwaysEvaluate;
+      if (Array.isArray(settings.tools.alwaysBlock)) merged.tools.alwaysBlock = settings.tools.alwaysBlock;
+    }
+    if (Array.isArray(settings.protectedPaths)) {
+      merged.protectedPaths = settings.protectedPaths;
     }
   }
 
@@ -128,11 +166,19 @@ export function resolveConfig(
       softDeny: expandDefaults(merged.classifier.softDeny, BUILTIN_DEFAULTS.softDeny),
       allow: expandDefaults(merged.classifier.allow, BUILTIN_DEFAULTS.allow),
       timeoutMs: merged.classifier.timeoutMs,
+      toolMode: merged.classifier.toolMode,
     },
     denyAndContinue: {
       maxConsecutiveDenials: merged.denyAndContinue.maxConsecutiveDenials,
       maxTotalDenials: merged.denyAndContinue.maxTotalDenials,
     },
+    tools: {
+      alwaysAllow: merged.tools.alwaysAllow,
+      allowInProject: merged.tools.allowInProject,
+      alwaysEvaluate: merged.tools.alwaysEvaluate,
+      alwaysBlock: merged.tools.alwaysBlock,
+    },
+    protectedPaths: merged.protectedPaths,
   };
 }
 

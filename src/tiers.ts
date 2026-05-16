@@ -1,18 +1,15 @@
 import * as path from "node:path";
+import type { ResolvedConfig } from "./types";
 
-const PROTECTED_PATTERNS = [
-  ".git/",
-  ".env",
-  ".env.",
-  ".pi/",
-  "node_modules/",
-  "~/.bashrc",
-  "~/.zshrc",
-  "~/.ssh/",
-];
-
-const TIER_1_TOOLS = new Set(["read", "grep", "find", "ls"]);
-const TIER_2_TOOLS = new Set(["write", "edit"]);
+const DEFAULT_CONFIG: Pick<ResolvedConfig, "tools" | "protectedPaths"> = {
+  protectedPaths: [".git/", ".env", ".env.", ".pi/", "node_modules/", "~/.bashrc", "~/.zshrc", "~/.ssh/"],
+  tools: {
+    alwaysAllow: ["read", "grep", "find", "ls"],
+    allowInProject: ["write", "edit"],
+    alwaysEvaluate: [],
+    alwaysBlock: [],
+  },
+};
 
 export interface TierResultAllow {
   kind: "allow";
@@ -26,9 +23,9 @@ export interface TierResultEvaluate {
 }
 export type TierResult = TierResultAllow | TierResultBlock | TierResultEvaluate;
 
-export function isProtectedPath(filePath: string): boolean {
+export function isProtectedPath(filePath: string, protectedPatterns = DEFAULT_CONFIG.protectedPaths): boolean {
   const normalized = filePath.replace(/\\/g, "/");
-  for (const pattern of PROTECTED_PATTERNS) {
+  for (const pattern of protectedPatterns) {
     if (pattern.endsWith("/")) {
       if (normalized.includes(pattern)) return true;
     } else if (pattern.startsWith(".env.")) {
@@ -63,26 +60,32 @@ export function evaluateTier(
   toolName: string,
   input: Record<string, unknown>,
   cwd: string,
+  config: Pick<ResolvedConfig, "tools" | "protectedPaths"> = DEFAULT_CONFIG,
 ): TierResult {
-  // Tier 1: Always allow
-  if (TIER_1_TOOLS.has(toolName)) {
-    return { kind: "allow" };
+  const effective = {
+    protectedPaths: config.protectedPaths ?? DEFAULT_CONFIG.protectedPaths,
+    tools: { ...DEFAULT_CONFIG.tools, ...(config.tools ?? {}) },
+  };
+
+  if (effective.tools.alwaysBlock.includes(toolName)) {
+    return { kind: "block", reason: `Blocked: tool "${toolName}" is always blocked` };
   }
 
   const targetPath = getPathFromInput(toolName, input);
 
-  // Protected paths check
-  if (targetPath && isProtectedPath(targetPath)) {
+  if (targetPath && isProtectedPath(targetPath, effective.protectedPaths)) {
     return { kind: "block", reason: `Blocked: path "${targetPath}" is protected` };
   }
 
-  // Tier 2: Auto-allow in auto mode only
-  if (TIER_2_TOOLS.has(toolName) && targetPath) {
+  if (effective.tools.alwaysAllow.includes(toolName)) {
+    return { kind: "allow" };
+  }
+
+  if (!effective.tools.alwaysEvaluate.includes(toolName) && effective.tools.allowInProject.includes(toolName) && targetPath) {
     if (isWithinCwd(targetPath, cwd)) {
       return { kind: "allow" };
     }
   }
 
-  // Everything else goes to classifier
   return { kind: "evaluate" };
 }

@@ -1,6 +1,7 @@
 import type { ResolvedConfig } from "./types";
 
-export function createDenyContinueManager(config: ResolvedConfig) {
+export function createDenyContinueManager(configOrGetter: ResolvedConfig | (() => ResolvedConfig)) {
+  const getConfig = typeof configOrGetter === "function" ? configOrGetter : () => configOrGetter;
   let consecutiveDenials = 0;
   let totalDenials = 0;
   const blockedToolCalls = new Map<string, string>();
@@ -49,6 +50,7 @@ export function createDenyContinueManager(config: ResolvedConfig) {
     },
 
     isThresholdBreached(): boolean {
+      const config = getConfig();
       return (
         consecutiveDenials >= config.denyAndContinue.maxConsecutiveDenials ||
         totalDenials >= config.denyAndContinue.maxTotalDenials

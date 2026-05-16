@@ -22,7 +22,7 @@ export async function makeDecision(
   transcript: Message[],
   currentMode: string,
 ): Promise<DecisionResult> {
-  const tier = evaluateTier(toolName, input, ctx.cwd);
+  const tier = evaluateTier(toolName, input, ctx.cwd, config);
 
   // Protected paths are blocked unconditionally in all modes
   if (tier.kind === "block") {

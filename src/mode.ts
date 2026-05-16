@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PermissionMode } from "./types";
+import type { PermissionMode, ResolvedConfig } from "./types";
+import { handleAutoModeCommand } from "./config-command";
 
 const MODES: PermissionMode[] = ["off", "auto", "dontAsk"];
 
@@ -48,7 +49,11 @@ export interface ModeManager {
   setup(): void;
 }
 
-export function createModeManager(pi: ExtensionAPI, settingsDefault: PermissionMode): ModeManager {
+export function createModeManager(
+  pi: ExtensionAPI,
+  settingsDefault: PermissionMode,
+  configDeps?: { getConfig(): ResolvedConfig; reloadConfig(cwd?: string): ResolvedConfig },
+): ModeManager {
   let currentMode: PermissionMode = "off";
 
   function updateStatus(ctx: ExtensionContext) {
@@ -79,9 +84,18 @@ export function createModeManager(pi: ExtensionAPI, settingsDefault: PermissionM
       });
 
       pi.registerCommand("auto-mode", {
-        description: "Cycle through auto-mode states (off → auto → dontAsk)",
-        handler: async (_args, ctx) => {
-          persistAndUpdate(cycleMode(currentMode), ctx);
+        description: "Configure auto-mode, or cycle states with no arguments",
+        handler: async (args, ctx) => {
+          if (!String(args ?? "").trim()) {
+            persistAndUpdate(cycleMode(currentMode), ctx);
+            return;
+          }
+          if (!configDeps) return;
+          await handleAutoModeCommand(String(args), ctx, {
+            ...configDeps,
+            getMode: () => currentMode,
+            setMode: (mode, commandCtx) => persistAndUpdate(mode, commandCtx),
+          });
         },
       });
 

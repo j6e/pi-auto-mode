@@ -6,9 +6,15 @@ import { makeDecision } from "./decision";
 import { createDenyContinueManager } from "./deny-continue";
 
 export default function (pi: ExtensionAPI) {
-  const config = loadConfig(process.cwd());
-  const modeManager = createModeManager(pi, config.defaultMode);
-  const denyManager = createDenyContinueManager(config);
+  let config = loadConfig(process.cwd());
+  const modeManager = createModeManager(pi, config.defaultMode, {
+    getConfig: () => config,
+    reloadConfig: (cwd?: string) => {
+      config = loadConfig(cwd ?? process.cwd());
+      return config;
+    },
+  });
+  const denyManager = createDenyContinueManager(() => config);
   modeManager.setup();
 
   pi.on("session_start", async (_event, _ctx) => {
