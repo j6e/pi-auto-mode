@@ -1,6 +1,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PermissionMode } from "./types";
+import type { Message } from "@earendil-works/pi-ai";
+import type { PermissionMode, ResolvedConfig } from "./types";
 import { evaluateTier } from "./tiers";
+import { classify } from "./classifier";
 
 export interface DecisionAllow {
   allow: true;
@@ -16,6 +18,8 @@ export async function makeDecision(
   toolName: string,
   input: Record<string, unknown>,
   ctx: ExtensionContext,
+  config: ResolvedConfig,
+  transcript: Message[],
 ): Promise<DecisionResult> {
   const tier = evaluateTier(toolName, input, ctx.cwd);
 
@@ -40,6 +44,10 @@ export async function makeDecision(
     return { block: true, reason: "Blocked: tool not in auto-allow tier (dontAsk mode)" };
   }
 
-  // auto mode: classifier placeholder blocks for now
-  return { block: true, reason: "Blocked: awaiting classifier decision (placeholder)" };
+  // auto mode: call the real classifier
+  const decision = await classify(config, toolName, input, transcript, ctx);
+  if (decision.decision === "allow") {
+    return { allow: true };
+  }
+  return { block: true, reason: decision.reason };
 }
