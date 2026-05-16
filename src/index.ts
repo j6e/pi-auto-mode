@@ -1,6 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { loadConfig } from "./config";
+import { createModeManager } from "./mode";
 
 export default function (pi: ExtensionAPI) {
-  // Placeholder entry point for pi-auto-mode extension.
-  // Full wiring will be implemented in downstream slices.
+  const config = loadConfig(process.cwd());
+  const modeManager = createModeManager(pi, config.defaultMode);
+  modeManager.setup();
 }
