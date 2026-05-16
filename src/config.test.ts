@@ -16,6 +16,7 @@ describe("resolveConfig", () => {
     expect(config.classifier.softDeny.length).toBeGreaterThan(0);
     expect(config.classifier.allow.length).toBeGreaterThan(0);
     expect(config.classifier.timeoutMs).toBe(3000);
+    expect(config.classifier.toolMode).toBe("force");
     expect(config.denyAndContinue.maxConsecutiveDenials).toBe(3);
     expect(config.denyAndContinue.maxTotalDenials).toBe(20);
   });
@@ -48,6 +49,7 @@ describe("resolveConfig", () => {
         softDeny: ["$defaults", "Project soft"],
         allow: ["$defaults"],
         timeoutMs: 2000,
+        toolMode: "auto",
       },
       denyAndContinue: {
         maxConsecutiveDenials: 2,
@@ -60,6 +62,7 @@ describe("resolveConfig", () => {
     expect(config.classifier.model).toBe("openai/gpt-4o");
     expect(config.classifier.prompt).toBe("custom prompt");
     expect(config.classifier.timeoutMs).toBe(2000);
+    expect(config.classifier.toolMode).toBe("auto");
     expect(config.denyAndContinue.maxConsecutiveDenials).toBe(2);
     expect(config.denyAndContinue.maxTotalDenials).toBe(10);
   });
@@ -114,6 +117,7 @@ describe("resolveConfig", () => {
         hardDeny: null as any,
         softDeny: undefined as any,
         allow: undefined as any,
+        toolMode: "invalid" as any,
       },
       denyAndContinue: {
         maxConsecutiveDenials: "three" as any,
@@ -130,6 +134,7 @@ describe("resolveConfig", () => {
     expect(Array.isArray(config.classifier.softDeny)).toBe(true);
     expect(Array.isArray(config.classifier.allow)).toBe(true);
     expect(config.classifier.timeoutMs).toBe(3000);
+    expect(config.classifier.toolMode).toBe("force");
     expect(config.denyAndContinue.maxConsecutiveDenials).toBe(3);
     expect(config.denyAndContinue.maxTotalDenials).toBe(20);
   });

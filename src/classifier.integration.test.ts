@@ -250,41 +250,31 @@ describe("classify integration", () => {
     expect(complete.mock.calls[0][2].reasoningEffort).toBe("none");
   });
 
-  it("retries without toolChoice when the provider rejects it", async () => {
-    const complete = vi
-      .fn()
-      .mockResolvedValueOnce(
-        makeErrorResponse(
-          "400 Error from provider: tool_choice 'specified' is incompatible with thinking enabled",
-        ),
-      )
-      .mockResolvedValueOnce(
-        makeToolCallResponse({
-          decision: "block",
-          reason: "Dangerous",
-          confidence: "high",
-          category: "security",
-        }),
-      );
-
-    const ctx = makeCtx();
-    const result = await classify(
-      BASE_CONFIG,
-      "bash",
-      { command: "rm -rf /" },
-      [],
-      ctx,
-      "auto",
-      { complete },
+  it("does not retry when the provider rejects the configured tool choice", async () => {
+    const complete = vi.fn().mockResolvedValueOnce(
+      makeErrorResponse(
+        "400 Error from provider: tool_choice 'specified' is incompatible with thinking enabled",
+      ),
     );
 
-    expect(complete).toHaveBeenCalledTimes(2);
+    const ctx = makeCtx();
+    await expect(
+      classify(
+        BASE_CONFIG,
+        "bash",
+        { command: "rm -rf /" },
+        [],
+        ctx,
+        "auto",
+        { complete },
+      ),
+    ).rejects.toThrow("tool_choice");
+
+    expect(complete).toHaveBeenCalledTimes(1);
     expect(complete.mock.calls[0][2].toolChoice).toEqual({
       type: "function",
       function: { name: "auto_mode_classifier" },
     });
-    expect(complete.mock.calls[1][2].toolChoice).toBeUndefined();
-    expect(result.decision).toBe("block");
   });
 
   it("aborts the request when the configured timeout fires", async () => {

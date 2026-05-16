@@ -153,7 +153,8 @@ src/
       "environment": ["$defaults", "Organization: Acme Corp", ...],
       "hardDeny": ["$defaults", "Never run DB migrations outside CLI", ...],
       "softDeny": ["$defaults", "Never send repo to third-party APIs", ...],
-      "allow": ["$defaults", "Deploying to staging is allowed", ...]
+      "allow": ["$defaults", "Deploying to staging is allowed", ...],
+      "toolMode": "force | required | auto"
     },
     "denyAndContinue": {
       "maxConsecutiveDenials": 3,
@@ -162,7 +163,7 @@ src/
   }
 }
 ```
-**Rationale:** Matches Claude's config shape. `classifier.prompt` overrides everything; absent `prompt` uses default template + slots. `$defaults` inheritance pattern for渐进式配置.
+**Rationale:** Matches Claude's config shape. `classifier.prompt` overrides everything; absent `prompt` uses default template + slots. `$defaults` inheritance pattern for渐进式配置. `classifier.toolMode` controls whether the classifier forces the named tool (`force`, default), requires any tool (`required`), or only exposes the tool and relies on the prompt (`auto`) for provider compatibility.
 
 ---
 

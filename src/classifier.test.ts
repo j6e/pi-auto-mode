@@ -454,6 +454,54 @@ describe("classify", () => {
     ).rejects.toThrow("malformed");
   });
 
+  it("omits toolChoice when classifier tool mode is auto", async () => {
+    const mockComplete = vi.fn().mockResolvedValue(
+      makeToolCallMessage({
+        decision: "allow",
+        reason: "OK",
+        confidence: "high",
+        category: "user_intent",
+      }),
+    );
+
+    const ctx = makeMockCtx();
+    await classify(
+      { ...DEFAULT_CONFIG, classifier: { ...DEFAULT_CONFIG.classifier, toolMode: "auto" } },
+      "bash",
+      { command: "ls" },
+      [],
+      ctx,
+      "auto",
+      { complete: mockComplete },
+    );
+
+    expect(mockComplete.mock.calls[0][2].toolChoice).toBeUndefined();
+  });
+
+  it("passes required toolChoice when classifier tool mode is required", async () => {
+    const mockComplete = vi.fn().mockResolvedValue(
+      makeToolCallMessage({
+        decision: "allow",
+        reason: "OK",
+        confidence: "high",
+        category: "user_intent",
+      }),
+    );
+
+    const ctx = makeMockCtx();
+    await classify(
+      { ...DEFAULT_CONFIG, classifier: { ...DEFAULT_CONFIG.classifier, toolMode: "required" } },
+      "bash",
+      { command: "ls" },
+      [],
+      ctx,
+      "auto",
+      { complete: mockComplete },
+    );
+
+    expect(mockComplete.mock.calls[0][2].toolChoice).toBe("required");
+  });
+
   it("passes toolChoice to force the classifier tool", async () => {
     const mockComplete = vi.fn().mockResolvedValue(
       makeToolCallMessage({

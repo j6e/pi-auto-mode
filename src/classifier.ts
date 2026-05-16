@@ -235,36 +235,25 @@ export async function classify(
   const timeout = setTimeout(() => controller.abort(), config.classifier.timeoutMs);
 
   try {
-    // Some providers (e.g. Moonshot/Kimi) reject tool_choice when reasoning is
-    // enabled. We disable reasoning when the model declares a way to do so via
-    // its thinkingLevelMap (model-agnostic, no hard-coding).
     const streamOptions: Parameters<typeof deps.complete>[2] = {
       signal: controller.signal,
       apiKey: auth.apiKey,
       headers: auth.headers,
-      toolChoice: { type: "function", function: { name: CLASSIFIER_TOOL_NAME } },
     };
+    // Let users choose the provider-compatible tool-choice strength instead of
+    // retrying based on provider-specific error text.
+    if (config.classifier.toolMode === "required") {
+      streamOptions.toolChoice = "required";
+    } else if (config.classifier.toolMode !== "auto") {
+      streamOptions.toolChoice = { type: "function", function: { name: CLASSIFIER_TOOL_NAME } };
+    }
     // Disable reasoning when the model declares a provider-specific way to do so.
     // If thinkingLevelMap.off is a string, it maps to a provider value (e.g. "none").
     // If it's null or undefined, reasoning cannot be disabled via this mechanism.
     if (model.thinkingLevelMap?.off != null) {
       streamOptions.reasoningEffort = model.thinkingLevelMap.off;
     }
-    let response = await deps.complete(model, context, streamOptions);
-
-    if (response.stopReason === "error") {
-      const errMsg = response.errorMessage || "";
-      // Some providers reject tool_choice when reasoning is enabled or when the
-      // model simply doesn't support forced tool calls. Retry once without it.
-      if (
-        streamOptions.toolChoice &&
-        (/tool_choice/i.test(errMsg) || /thinking enabled/i.test(errMsg))
-      ) {
-        const retryOptions = { ...streamOptions };
-        delete (retryOptions as any).toolChoice;
-        response = await deps.complete(model, context, retryOptions);
-      }
-    }
+    const response = await deps.complete(model, context, streamOptions);
 
     clearTimeout(timeout);
 
