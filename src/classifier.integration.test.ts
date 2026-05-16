@@ -53,6 +53,27 @@ function makeCtx(modelOverrides?: Partial<Model<any>>): ExtensionContext {
   } as unknown as ExtensionContext;
 }
 
+function makeErrorResponse(errorMessage: string): AssistantMessage {
+  return {
+    role: "assistant",
+    content: [],
+    api: "anthropic-messages",
+    provider: "anthropic",
+    model: "claude-sonnet-4",
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    stopReason: "error" as any,
+    errorMessage,
+    timestamp: Date.now(),
+  };
+}
+
 function makeToolCallResponse(args: Record<string, unknown>): AssistantMessage {
   return {
     role: "assistant",
@@ -227,6 +248,43 @@ describe("classify integration", () => {
     expect(ctx.modelRegistry.find).toHaveBeenCalledWith("openai", "gpt-4o");
     expect(complete.mock.calls[0][0]).toBe(dedicatedModel);
     expect(complete.mock.calls[0][2].reasoningEffort).toBe("none");
+  });
+
+  it("retries without toolChoice when the provider rejects it", async () => {
+    const complete = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeErrorResponse(
+          "400 Error from provider: tool_choice 'specified' is incompatible with thinking enabled",
+        ),
+      )
+      .mockResolvedValueOnce(
+        makeToolCallResponse({
+          decision: "block",
+          reason: "Dangerous",
+          confidence: "high",
+          category: "security",
+        }),
+      );
+
+    const ctx = makeCtx();
+    const result = await classify(
+      BASE_CONFIG,
+      "bash",
+      { command: "rm -rf /" },
+      [],
+      ctx,
+      "auto",
+      { complete },
+    );
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(complete.mock.calls[0][2].toolChoice).toEqual({
+      type: "function",
+      function: { name: "auto_mode_classifier" },
+    });
+    expect(complete.mock.calls[1][2].toolChoice).toBeUndefined();
+    expect(result.decision).toBe("block");
   });
 
   it("aborts the request when the configured timeout fires", async () => {

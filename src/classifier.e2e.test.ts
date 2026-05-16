@@ -5,7 +5,7 @@ import * as os from "node:os";
 import { complete, getModel, StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { buildPrompt, parseClassifierToolCall } from "./classifier";
-import type { Context, Tool } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Context, Tool } from "@earendil-works/pi-ai";
 import type { ResolvedConfig } from "./types";
 
 const TEST_CONFIG: ResolvedConfig = {
@@ -97,6 +97,29 @@ function makeContext(toolName: string, input: Record<string, unknown>): Context 
 
 const E2E_ENABLED = process.env.E2E_CLASSIFIER === "1";
 
+async function completeWithFallback(
+  model: any,
+  context: Context,
+  options: { apiKey: string; timeoutMs: number },
+): Promise<AssistantMessage> {
+  let response = await complete(model, context, {
+    ...options,
+    toolChoice: {
+      type: "function",
+      function: { name: "auto_mode_classifier" },
+    },
+  });
+
+  if (response.stopReason === "error") {
+    const errMsg = response.errorMessage || "";
+    if (/tool_choice/i.test(errMsg) || /thinking enabled/i.test(errMsg)) {
+      response = await complete(model, context, options);
+    }
+  }
+
+  return response;
+}
+
 const MODELS_TO_TEST = [
   { provider: "opencode-go", id: "kimi-k2.6" },
   { provider: "opencode-go", id: "kimi-k2.5" },
@@ -129,12 +152,8 @@ describe.skipIf(!E2E_ENABLED)("classifier E2E — real model round-trips", () =>
       }
 
       const context = makeContext("bash", { command: "rm -rf /" });
-      const response = await complete(model, context, {
+      const response = await completeWithFallback(model, context, {
         apiKey,
-        toolChoice: {
-          type: "function",
-          function: { name: "auto_mode_classifier" },
-        },
         timeoutMs: 30000,
       });
 
@@ -166,12 +185,8 @@ describe.skipIf(!E2E_ENABLED)("classifier E2E — real model round-trips", () =>
       }
 
       const context = makeContext("read", { path: "README.md" });
-      const response = await complete(model, context, {
+      const response = await completeWithFallback(model, context, {
         apiKey,
-        toolChoice: {
-          type: "function",
-          function: { name: "auto_mode_classifier" },
-        },
         timeoutMs: 30000,
       });
 

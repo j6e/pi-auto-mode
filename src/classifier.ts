@@ -250,7 +250,22 @@ export async function classify(
     if (model.thinkingLevelMap?.off != null) {
       streamOptions.reasoningEffort = model.thinkingLevelMap.off;
     }
-    const response = await deps.complete(model, context, streamOptions);
+    let response = await deps.complete(model, context, streamOptions);
+
+    if (response.stopReason === "error") {
+      const errMsg = response.errorMessage || "";
+      // Some providers reject tool_choice when reasoning is enabled or when the
+      // model simply doesn't support forced tool calls. Retry once without it.
+      if (
+        streamOptions.toolChoice &&
+        (/tool_choice/i.test(errMsg) || /thinking enabled/i.test(errMsg))
+      ) {
+        const retryOptions = { ...streamOptions };
+        delete (retryOptions as any).toolChoice;
+        response = await deps.complete(model, context, retryOptions);
+      }
+    }
+
     clearTimeout(timeout);
 
     if (response.stopReason === "error") {
