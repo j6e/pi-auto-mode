@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ExtensionAPI, ExtensionContext, ReadonlySessionManager } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, Message, Model } from "@earendil-works/pi-ai";
 import extensionFactory from "./index";
 
@@ -48,7 +48,7 @@ function makeClassifierMessage(reason: string): AssistantMessage {
       totalTokens: 0,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
-    stopReason: "tool_call",
+    stopReason: "toolUse" as any,
     timestamp: Date.now(),
   };
 }
@@ -102,7 +102,7 @@ function createMockContext(overrides?: Partial<ExtensionContext>): ExtensionCont
     },
     sessionManager: {
       getEntries: vi.fn().mockReturnValue([]),
-    } as unknown as ReadonlySessionManager,
+    } as any,
     shutdown: vi.fn(),
     ...overrides,
   } as ExtensionContext;

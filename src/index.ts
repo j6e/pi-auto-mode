@@ -18,8 +18,8 @@ export default function (pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {
     const entries = ctx.sessionManager.getEntries();
     const transcript: Message[] = entries
-      .filter((e): e is { type: "message"; message: Message } => e.type === "message")
-      .map((e) => e.message);
+      .filter((e) => e.type === "message")
+      .map((e) => (e as any).message);
 
     const decision = await makeDecision(
       modeManager.getMode(),
@@ -30,7 +30,7 @@ export default function (pi: ExtensionAPI) {
       transcript,
     );
 
-    if (decision.allow) {
+    if ("allow" in decision) {
       denyManager.recordAllow();
       return undefined;
     }

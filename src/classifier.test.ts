@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildPrompt, classify, parseClassifierToolCall } from "./classifier";
 import type { ResolvedConfig } from "./types";
-import type { ExtensionContext, Model } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { Model } from "@earendil-works/pi-ai";
 import type { AssistantMessage, Message } from "@earendil-works/pi-ai";
 
 const DEFAULT_CONFIG: ResolvedConfig = {
@@ -62,7 +63,7 @@ function makeToolCallMessage(args: Record<string, unknown>): AssistantMessage {
       totalTokens: 0,
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
     },
-    stopReason: "tool_call",
+    stopReason: "toolUse" as any,
     timestamp: Date.now(),
   };
 }
@@ -168,7 +169,7 @@ describe("classify", () => {
         provider: "anthropic",
         model: "claude",
         usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-        stopReason: "end_turn",
+        stopReason: "stop" as any,
         timestamp: 2,
       },
       {

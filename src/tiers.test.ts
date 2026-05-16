@@ -62,7 +62,7 @@ describe("evaluateTier", () => {
   it("Protected paths block write/edit unconditionally", () => {
     const writeGit = evaluateTier("write", { path: ".git/config" }, cwd);
     expect(writeGit.kind).toBe("block");
-    expect(writeGit.reason).toContain("protected");
+    expect((writeGit as any).reason).toContain("protected");
 
     const editEnv = evaluateTier("edit", { path: ".env" }, cwd);
     expect(editEnv.kind).toBe("block");
@@ -71,7 +71,7 @@ describe("evaluateTier", () => {
   it("bash with protected path references blocks", () => {
     const result = evaluateTier("bash", { command: "cat ~/.ssh/id_rsa" }, cwd);
     expect(result.kind).toBe("block");
-    expect(result.reason).toContain("protected");
+    expect((result as any).reason).toContain("protected");
   });
 
   it("bash without protected path references requires evaluation", () => {

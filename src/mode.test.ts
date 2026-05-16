@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { resolveInitialMode, cycleMode, createModeManager } from "./mode";
 import type { PermissionMode } from "./types";
-import type { ExtensionAPI, ExtensionContext, ReadonlySessionManager } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 describe("resolveInitialMode", () => {
   it("uses CLI flag when present and valid", () => {
@@ -84,7 +84,7 @@ describe("createModeManager", () => {
       },
       sessionManager: {
         getEntries: vi.fn().mockReturnValue(entries),
-      } as unknown as ReadonlySessionManager,
+      } as any,
     } as unknown as ExtensionContext;
   }
 

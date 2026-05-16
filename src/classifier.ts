@@ -1,4 +1,5 @@
-import type { ExtensionContext, Model } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { Model } from "@earendil-works/pi-ai";
 import { complete } from "@earendil-works/pi-ai";
 import type { AssistantMessage, Context, Message, Tool } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
@@ -76,10 +77,9 @@ function stripTranscript(messages: Message[]): Message[] {
 }
 
 export function parseClassifierToolCall(message: AssistantMessage): ClassifierDecision | null {
-  const toolCall = message.content.find(
-    (c): c is { type: "toolCall"; arguments: Record<string, unknown> } =>
-      c.type === "toolCall",
-  );
+  const toolCall = message.content.find((c) => c.type === "toolCall") as
+    | { type: "toolCall"; arguments: Record<string, unknown> }
+    | undefined;
   if (!toolCall) return null;
 
   const args = toolCall.arguments;

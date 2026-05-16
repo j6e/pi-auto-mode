@@ -103,10 +103,9 @@ export function createModeManager(pi: ExtensionAPI, settingsDefault: PermissionM
         }
 
         const entries = ctx.sessionManager.getEntries();
-        const customEntries = entries.filter(
-          (e): e is { customType?: string; data?: unknown } =>
-            "customType" in e,
-        );
+        const customEntries = entries
+          .filter((e) => "customType" in e)
+          .map((e) => ({ customType: (e as any).customType, data: (e as any).data }));
         const mode = resolveInitialMode(flagValue, customEntries, settingsDefault);
         currentMode = mode;
         updateStatus(ctx);
