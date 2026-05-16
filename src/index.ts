@@ -3,11 +3,17 @@ import type { Message } from "@earendil-works/pi-ai";
 import { loadConfig } from "./config";
 import { createModeManager } from "./mode";
 import { makeDecision } from "./decision";
+import { createDenyContinueManager } from "./deny-continue";
 
 export default function (pi: ExtensionAPI) {
   const config = loadConfig(process.cwd());
   const modeManager = createModeManager(pi, config.defaultMode);
+  const denyManager = createDenyContinueManager(config);
   modeManager.setup();
+
+  pi.on("session_start", async (_event, _ctx) => {
+    denyManager.reset();
+  });
 
   pi.on("tool_call", async (event, ctx) => {
     const entries = ctx.sessionManager.getEntries();
@@ -23,8 +29,46 @@ export default function (pi: ExtensionAPI) {
       config,
       transcript,
     );
-    if (decision.block) {
-      return { block: true, reason: decision.reason };
+
+    if (decision.allow) {
+      denyManager.recordAllow();
+      return undefined;
     }
+
+    // Block
+    denyManager.recordBlock(event.toolCallId, decision.reason);
+
+    if (ctx.hasUI) {
+      ctx.ui.notify(`Blocked: ${decision.reason}`, "warning");
+    }
+
+    if (denyManager.isThresholdBreached()) {
+      if (ctx.hasUI) {
+        const ok = await ctx.ui.confirm(
+          "Auto-mode threshold reached",
+          `The agent has been blocked ${denyManager.getConsecutiveDenials()} consecutive times. Allow this action?`,
+        );
+        if (ok) {
+          denyManager.recordAllow();
+          denyManager.consumeBlocked(event.toolCallId);
+          return undefined;
+        }
+      } else {
+        ctx.shutdown();
+      }
+    }
+
+    return { block: true, reason: decision.reason };
+  });
+
+  pi.on("tool_result", async (event, _ctx) => {
+    const reason = denyManager.consumeBlocked(event.toolCallId);
+    if (reason) {
+      const message = denyManager.buildDenialMessage(reason);
+      return {
+        content: [{ type: "text", text: message }],
+      };
+    }
+    return undefined;
   });
 }
