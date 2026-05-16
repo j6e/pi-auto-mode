@@ -5,6 +5,10 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 vi.mock("@earendil-works/pi-ai", () => ({
   complete: vi.fn().mockRejectedValue(new Error("Mock classifier failure")),
+  StringEnum: vi.fn((values: string[]) => ({
+    type: "string",
+    enum: values,
+  })),
 }));
 
 const DEFAULT_CONFIG: ResolvedConfig = {
@@ -30,7 +34,10 @@ function makeCtx(): ExtensionContext {
     cwd: "/home/user/project",
     hasUI: true,
     model: { id: "claude", provider: "anthropic" },
-    modelRegistry: { find: vi.fn() },
+    modelRegistry: {
+      find: vi.fn(),
+      getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: "test-key", headers: {} }),
+    },
   } as unknown as ExtensionContext;
 }
 

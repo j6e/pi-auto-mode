@@ -99,6 +99,7 @@ function createMockContext(overrides?: Partial<ExtensionContext>): ExtensionCont
     model: makeMockModel(),
     modelRegistry: {
       find: vi.fn().mockReturnValue(makeMockModel()),
+      getApiKeyAndHeaders: vi.fn().mockResolvedValue({ ok: true, apiKey: "test-key", headers: {} }),
     },
     sessionManager: {
       getEntries: vi.fn().mockReturnValue([]),

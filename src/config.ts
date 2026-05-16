@@ -136,11 +136,11 @@ export function resolveConfig(
   };
 }
 
-export function loadConfig(cwd: string): ResolvedConfig {
+export function loadConfig(cwd: string, homeDir = os.homedir()): ResolvedConfig {
   let globalSettings: AutoModeSettings | undefined;
   let projectSettings: AutoModeSettings | undefined;
 
-  const globalSettingsPath = path.join(os.homedir(), ".pi", "agent", "settings.json");
+  const globalSettingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
   try {
     const raw = fs.readFileSync(globalSettingsPath, "utf-8");
     const parsed = JSON.parse(raw);

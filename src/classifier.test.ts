@@ -36,6 +36,11 @@ function makeMockCtx(model?: Model<any>): ExtensionContext {
     model: model ?? makeMockModel(),
     modelRegistry: {
       find: vi.fn().mockReturnValue(model ?? makeMockModel()),
+      getApiKeyAndHeaders: vi.fn().mockResolvedValue({
+        ok: true,
+        apiKey: "test-key",
+        headers: {},
+      }),
     },
     sessionManager: {
       getEntries: vi.fn().mockReturnValue([]),
@@ -109,6 +114,70 @@ describe("parseClassifierToolCall", () => {
     });
   });
 
+  it("parses tool call arguments when returned as a JSON string", () => {
+    const msg = makeToolCallMessage({
+      decision: "allow",
+      reason: "Safe",
+      confidence: "medium",
+      category: "user_intent",
+    });
+    // Some providers return arguments as a raw JSON string
+    (msg.content[0] as any).arguments = JSON.stringify({
+      decision: "allow",
+      reason: "Safe",
+      confidence: "medium",
+      category: "user_intent",
+    });
+    const result = parseClassifierToolCall(msg);
+    expect(result).toEqual({
+      decision: "allow",
+      reason: "Safe",
+      confidence: "medium",
+      category: "user_intent",
+    });
+  });
+
+  it("falls back to parsing JSON from text content", () => {
+    const msg: AssistantMessage = {
+      role: "assistant",
+      content: [{ type: "text", text: '{"decision":"block","reason":"Bad","confidence":"low","category":"security"}' }],
+      api: "openai-completions",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "stop" as any,
+      timestamp: Date.now(),
+    };
+    const result = parseClassifierToolCall(msg);
+    expect(result).toEqual({
+      decision: "block",
+      reason: "Bad",
+      confidence: "low",
+      category: "security",
+    });
+  });
+
+  it("ignores tool calls with wrong name", () => {
+    const msg: AssistantMessage = {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "tc-1",
+          name: "some_other_tool",
+          arguments: { decision: "allow", reason: "OK", confidence: "high", category: "user_intent" },
+        },
+      ],
+      api: "anthropic-messages",
+      provider: "anthropic",
+      model: "claude-sonnet-4",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "toolUse" as any,
+      timestamp: Date.now(),
+    };
+    expect(parseClassifierToolCall(msg)).toBeNull();
+  });
+
   it("returns null when no tool calls present", () => {
     const msg: AssistantMessage = {
       ...makeToolCallMessage({}),
@@ -125,6 +194,66 @@ describe("parseClassifierToolCall", () => {
   it("returns null when required fields are missing", () => {
     const msg = makeToolCallMessage({ decision: "allow" });
     expect(parseClassifierToolCall(msg)).toBeNull();
+  });
+
+  it("falls back to parsing JSON from thinking content for reasoning models", () => {
+    const msg: AssistantMessage = {
+      role: "assistant",
+      content: [
+        {
+          type: "thinking",
+          thinking: 'Let me analyze this... The decision should be {"decision":"allow","reason":"Safe operation","confidence":"high","category":"user_intent"}',
+        },
+      ],
+      api: "openai-completions",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "stop" as any,
+      timestamp: Date.now(),
+    };
+    const result = parseClassifierToolCall(msg);
+    expect(result).toEqual({
+      decision: "allow",
+      reason: "Safe operation",
+      confidence: "high",
+      category: "user_intent",
+    });
+  });
+
+  it("prefers toolCall over text and thinking content", () => {
+    const msg: AssistantMessage = {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "tc-1",
+          name: "auto_mode_classifier",
+          arguments: {
+            decision: "allow",
+            reason: "From tool",
+            confidence: "high",
+            category: "user_intent",
+          },
+        },
+        {
+          type: "text",
+          text: '{"decision":"block","reason":"From text","confidence":"low","category":"security"}',
+        },
+        {
+          type: "thinking",
+          thinking: '{"decision":"block","reason":"From thinking","confidence":"medium","category":"other"}',
+        },
+      ],
+      api: "anthropic-messages",
+      provider: "anthropic",
+      model: "claude-sonnet-4",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "toolUse" as any,
+      timestamp: Date.now(),
+    };
+    const result = parseClassifierToolCall(msg);
+    expect(result!.reason).toBe("From tool");
   });
 });
 
@@ -222,9 +351,9 @@ describe("classify", () => {
     const passedContext = mockComplete.mock.calls[0][1];
     const messages = passedContext.messages as Message[];
 
-    // Should only contain user messages + the pending tool call description
+    // Should only contain user messages + the pending tool call + explicit instruction
     const userMessages = messages.filter((m) => m.role === "user");
-    expect(userMessages.length).toBe(3); // 2 original user messages + pending tool call
+    expect(userMessages.length).toBe(4); // 2 original user messages + pending tool call + instruction
     expect(messages.some((m) => m.role === "assistant")).toBe(false);
     expect(messages.some((m) => m.role === "toolResult")).toBe(false);
   });
@@ -323,6 +452,97 @@ describe("classify", () => {
         complete: mockComplete,
       }),
     ).rejects.toThrow("malformed");
+  });
+
+  it("passes toolChoice to force the classifier tool", async () => {
+    const mockComplete = vi.fn().mockResolvedValue(
+      makeToolCallMessage({
+        decision: "allow",
+        reason: "OK",
+        confidence: "high",
+        category: "user_intent",
+      }),
+    );
+
+    const ctx = makeMockCtx();
+    await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
+      complete: mockComplete,
+    });
+
+    const options = mockComplete.mock.calls[0][2];
+    expect(options.toolChoice).toEqual({
+      type: "function",
+      function: { name: "auto_mode_classifier" },
+    });
+    // Mock model has no thinkingLevelMap, so reasoningEffort should not be set
+    expect(options.reasoningEffort).toBeUndefined();
+  });
+
+  it("passes reasoningEffort mapped value when model declares a thinkingLevelMap.off string", async () => {
+    const mockComplete = vi.fn().mockResolvedValue(
+      makeToolCallMessage({
+        decision: "allow",
+        reason: "OK",
+        confidence: "high",
+        category: "user_intent",
+      }),
+    );
+
+    const modelWithThinking = makeMockModel();
+    (modelWithThinking as any).thinkingLevelMap = { off: "none" };
+
+    const ctx = makeMockCtx(modelWithThinking);
+    await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
+      complete: mockComplete,
+    });
+
+    const options = mockComplete.mock.calls[0][2];
+    // reasoningEffort uses the provider-mapped value, not a hardcoded "off"
+    expect(options.reasoningEffort).toBe("none");
+  });
+
+  it("returns block fallback when model returns completely empty content", async () => {
+    const emptyResponse: AssistantMessage = {
+      role: "assistant",
+      content: [],
+      api: "openai-completions",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "stop" as any,
+      timestamp: Date.now(),
+    };
+    const mockComplete = vi.fn().mockResolvedValue(emptyResponse);
+
+    const ctx = makeMockCtx();
+    const result = await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
+      complete: mockComplete,
+    });
+
+    expect(result.decision).toBe("block");
+    expect(result.reason).toContain("empty response");
+  });
+
+  it("throws when model returns an error stopReason", async () => {
+    const errorMsg: AssistantMessage = {
+      role: "assistant",
+      content: [{ type: "text", text: "Error" }],
+      api: "openai-completions",
+      provider: "openai",
+      model: "gpt-4o",
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+      stopReason: "error",
+      errorMessage: "Provider rate limited",
+      timestamp: Date.now(),
+    };
+    const mockComplete = vi.fn().mockResolvedValue(errorMsg);
+
+    const ctx = makeMockCtx();
+    await expect(
+      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
+        complete: mockComplete,
+      }),
+    ).rejects.toThrow("Provider rate limited");
   });
 
   it("returns block when no model is available", async () => {
