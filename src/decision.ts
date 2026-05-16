@@ -45,9 +45,23 @@ export async function makeDecision(
   }
 
   // auto mode: call the real classifier
-  const decision = await classify(config, toolName, input, transcript, ctx);
-  if (decision.decision === "allow") {
-    return { allow: true };
+  try {
+    const classifierDecision = await classify(config, toolName, input, transcript, ctx);
+    if (classifierDecision.decision === "allow") {
+      return { allow: true };
+    }
+    return { block: true, reason: classifierDecision.reason };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (ctx.hasUI) {
+      const ok = await ctx.ui.confirm(
+        "Classifier failed",
+        `${message}\n\nAllow this action?`,
+      );
+      if (ok) {
+        return { allow: true };
+      }
+    }
+    return { block: true, reason: message };
   }
-  return { block: true, reason: decision.reason };
 }

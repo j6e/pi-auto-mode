@@ -116,6 +116,21 @@ describe("createModeManager", () => {
     expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: auto");
   });
 
+  it("forces mode to off in non-interactive mode without explicit flag", () => {
+    const pi = makeMockPi(); // no flag
+    const manager = createModeManager(pi, "auto");
+    manager.setup();
+
+    const ctx = makeMockCtx([]);
+    (ctx as any).hasUI = false;
+
+    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
+    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
+    sessionStartHandler({}, ctx);
+
+    expect(manager.getMode()).toBe("off");
+  });
+
   it("persists mode change via appendEntry and updates footer", () => {
     const pi = makeMockPi();
     const manager = createModeManager(pi, "off");

@@ -174,19 +174,9 @@ export async function classify(
     const parsed = parseClassifierToolCall(response);
     if (parsed) return parsed;
 
-    return {
-      decision: "block",
-      reason: "Classifier returned malformed decision",
-      confidence: "low",
-      category: "other",
-    };
+    throw new Error("Classifier returned malformed decision");
   } catch (error) {
     clearTimeout(timeout);
-    return {
-      decision: "block",
-      reason: `Classifier failed: ${error instanceof Error ? error.message : String(error)}`,
-      confidence: "low",
-      category: "other",
-    };
+    throw new Error(`Classifier failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

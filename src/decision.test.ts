@@ -55,9 +55,25 @@ describe("makeDecision", () => {
     }
   });
 
-  it("in auto mode, non-tiered tools route to classifier", async () => {
-    // The classifier mock rejects, returning a block decision
-    const result = await makeDecision("auto", "bash", { command: "npm test" }, makeCtx(), DEFAULT_CONFIG, []);
+  it("in auto mode, non-tiered tools route to classifier and block on failure in non-interactive mode", async () => {
+    const ctx = makeCtx();
+    ctx.hasUI = false;
+    const result = await makeDecision("auto", "bash", { command: "npm test" }, ctx, DEFAULT_CONFIG, []);
+    expect(result).toEqual({ block: true, reason: expect.stringContaining("Mock classifier failure") });
+  });
+
+  it("in auto mode, classifier failure falls back to confirm in interactive mode", async () => {
+    const ctx = makeCtx();
+    ctx.ui.confirm = vi.fn().mockResolvedValue(true);
+    const result = await makeDecision("auto", "bash", { command: "npm test" }, ctx, DEFAULT_CONFIG, []);
+    expect(result).toEqual({ allow: true });
+    expect(ctx.ui.confirm).toHaveBeenCalled();
+  });
+
+  it("in auto mode, classifier failure blocks if user declines confirm", async () => {
+    const ctx = makeCtx();
+    ctx.ui.confirm = vi.fn().mockResolvedValue(false);
+    const result = await makeDecision("auto", "bash", { command: "npm test" }, ctx, DEFAULT_CONFIG, []);
     expect(result).toEqual({ block: true, reason: expect.stringContaining("Mock classifier failure") });
   });
 

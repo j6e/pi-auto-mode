@@ -269,33 +269,27 @@ describe("classify", () => {
     expect(mockComplete.mock.calls[0][0]).toBe(activeModel);
   });
 
-  it("returns block on timeout", async () => {
+  it("throws on timeout", async () => {
     const mockComplete = vi.fn().mockRejectedValue(new Error("Timeout"));
 
     const ctx = makeMockCtx();
-    const result = await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
-      complete: mockComplete,
-    });
-
-    expect(result.decision).toBe("block");
-    expect(result.reason).toContain("Timeout");
-    expect(result.confidence).toBe("low");
-    expect(result.category).toBe("other");
+    await expect(
+      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
+        complete: mockComplete,
+      }),
+    ).rejects.toThrow("Timeout");
   });
 
-  it("returns block on malformed tool call response", async () => {
+  it("throws on malformed tool call response", async () => {
     const mockComplete = vi.fn().mockResolvedValue(
       makeToolCallMessage({ decision: "maybe" }),
     );
 
     const ctx = makeMockCtx();
-    const result = await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
-      complete: mockComplete,
-    });
-
-    expect(result.decision).toBe("block");
-    expect(result.reason).toContain("malformed");
-    expect(result.confidence).toBe("low");
-    expect(result.category).toBe("other");
+    await expect(
+      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
+        complete: mockComplete,
+      }),
+    ).rejects.toThrow("malformed");
   });
 });

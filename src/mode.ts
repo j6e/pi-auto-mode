@@ -94,6 +94,14 @@ export function createModeManager(pi: ExtensionAPI, settingsDefault: PermissionM
 
       pi.on("session_start", async (_event, ctx) => {
         const flagValue = pi.getFlag("auto-mode");
+
+        // In non-interactive mode without explicit flag, force off
+        if (!ctx.hasUI && !flagValue) {
+          currentMode = "off";
+          updateStatus(ctx);
+          return;
+        }
+
         const entries = ctx.sessionManager.getEntries();
         const customEntries = entries.filter(
           (e): e is { customType?: string; data?: unknown } =>
