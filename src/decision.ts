@@ -20,14 +20,12 @@ export async function makeDecision(
   ctx: ExtensionContext,
   config: ResolvedConfig,
   transcript: Message[],
+  currentMode: string,
 ): Promise<DecisionResult> {
   const tier = evaluateTier(toolName, input, ctx.cwd);
 
   // Protected paths are blocked unconditionally in all modes
   if (tier.kind === "block") {
-    if (ctx.hasUI) {
-      ctx.ui.notify(`Blocked: ${tier.reason}`, "warning");
-    }
     return { block: true, reason: tier.reason };
   }
 
@@ -46,7 +44,7 @@ export async function makeDecision(
 
   // auto mode: call the real classifier
   try {
-    const classifierDecision = await classify(config, toolName, input, transcript, ctx);
+    const classifierDecision = await classify(config, toolName, input, transcript, ctx, currentMode);
     if (classifierDecision.decision === "allow") {
       return { allow: true };
     }

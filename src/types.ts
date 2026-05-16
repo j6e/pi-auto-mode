@@ -26,6 +26,7 @@ export interface ClassifierConfig {
   hardDeny: string[];
   softDeny: string[];
   allow: string[];
+  timeoutMs: number;
 }
 
 export interface AutoModeSettings {

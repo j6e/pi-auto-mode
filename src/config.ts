@@ -6,6 +6,7 @@ import * as os from "node:os";
 const DEFAULT_MODE: PermissionMode = "off";
 const DEFAULT_MAX_CONSECUTIVE = 3;
 const DEFAULT_MAX_TOTAL = 20;
+const DEFAULT_CLASSIFIER_TIMEOUT_MS = 3000;
 
 const BUILTIN_DEFAULTS = {
   environment: [
@@ -70,6 +71,7 @@ export function resolveConfig(
       hardDeny: ["$defaults"],
       softDeny: ["$defaults"],
       allow: ["$defaults"],
+      timeoutMs: DEFAULT_CLASSIFIER_TIMEOUT_MS,
     },
     denyAndContinue: {
       maxConsecutiveDenials: DEFAULT_MAX_CONSECUTIVE,
@@ -97,6 +99,9 @@ export function resolveConfig(
       if (Array.isArray(settings.classifier.allow)) {
         merged.classifier.allow = settings.classifier.allow;
       }
+      if (typeof settings.classifier.timeoutMs === "number" && Number.isFinite(settings.classifier.timeoutMs)) {
+        merged.classifier.timeoutMs = settings.classifier.timeoutMs;
+      }
     }
     if (settings.denyAndContinue) {
       merged.denyAndContinue.maxConsecutiveDenials = sanitizeNumber(
@@ -122,6 +127,7 @@ export function resolveConfig(
       hardDeny: expandDefaults(merged.classifier.hardDeny, BUILTIN_DEFAULTS.hardDeny),
       softDeny: expandDefaults(merged.classifier.softDeny, BUILTIN_DEFAULTS.softDeny),
       allow: expandDefaults(merged.classifier.allow, BUILTIN_DEFAULTS.allow),
+      timeoutMs: merged.classifier.timeoutMs,
     },
     denyAndContinue: {
       maxConsecutiveDenials: merged.denyAndContinue.maxConsecutiveDenials,

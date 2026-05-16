@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
     hardDeny: ["No rm -rf"],
     softDeny: ["Be careful with APIs"],
     allow: ["Tests are fine"],
+    timeoutMs: 3000,
   },
   denyAndContinue: {
     maxConsecutiveDenials: 3,
@@ -141,6 +142,7 @@ describe("classify", () => {
       { command: "npm test" },
       [],
       ctx,
+      "auto",
       { complete: mockComplete },
     );
 
@@ -184,7 +186,7 @@ describe("classify", () => {
     ];
 
     const ctx = makeMockCtx();
-    await classify(DEFAULT_CONFIG, "bash", { command: "rm -rf /" }, transcript, ctx, {
+    await classify(DEFAULT_CONFIG, "bash", { command: "rm -rf /" }, transcript, ctx, "auto", {
       complete: mockComplete,
     });
 
@@ -210,7 +212,7 @@ describe("classify", () => {
 
     const activeModel = makeMockModel();
     const ctx = makeMockCtx(activeModel);
-    await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
+    await classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
       complete: mockComplete,
     });
 
@@ -236,7 +238,7 @@ describe("classify", () => {
       classifier: { ...DEFAULT_CONFIG.classifier, model: "openai/gpt-4o" },
     };
 
-    await classify(config, "bash", { command: "ls" }, [], ctx, {
+    await classify(config, "bash", { command: "ls" }, [], ctx, "auto", {
       complete: mockComplete,
     });
 
@@ -263,7 +265,7 @@ describe("classify", () => {
       classifier: { ...DEFAULT_CONFIG.classifier, model: "openai/gpt-4o" },
     };
 
-    await classify(config, "bash", { command: "ls" }, [], ctx, {
+    await classify(config, "bash", { command: "ls" }, [], ctx, "auto", {
       complete: mockComplete,
     });
 
@@ -275,7 +277,7 @@ describe("classify", () => {
 
     const ctx = makeMockCtx();
     await expect(
-      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
+      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
         complete: mockComplete,
       }),
     ).rejects.toThrow("Timeout");
@@ -288,7 +290,7 @@ describe("classify", () => {
 
     const ctx = makeMockCtx();
     await expect(
-      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, {
+      classify(DEFAULT_CONFIG, "bash", { command: "ls" }, [], ctx, "auto", {
         complete: mockComplete,
       }),
     ).rejects.toThrow("malformed");

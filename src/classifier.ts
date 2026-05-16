@@ -137,6 +137,7 @@ export async function classify(
   toolInput: Record<string, unknown>,
   transcript: Message[],
   ctx: ExtensionContext,
+  currentMode: string,
   deps: ClassifierDeps = { complete },
 ): Promise<ClassifierDecision> {
   const model = resolveModel(config, ctx);
@@ -162,8 +163,12 @@ export async function classify(
     tools: [classifierTool],
   };
 
+  if (ctx.hasUI) {
+    ctx.ui.setStatus("auto-mode", "auto-mode: classifying...");
+  }
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3000);
+  const timeout = setTimeout(() => controller.abort(), config.classifier.timeoutMs);
 
   try {
     const response = await deps.complete(model, context, {
@@ -178,5 +183,9 @@ export async function classify(
   } catch (error) {
     clearTimeout(timeout);
     throw new Error(`Classifier failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    if (ctx.hasUI) {
+      ctx.ui.setStatus("auto-mode", `auto-mode: ${currentMode}`);
+    }
   }
 }

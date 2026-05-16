@@ -28,6 +28,7 @@ export default function (pi: ExtensionAPI) {
       ctx,
       config,
       transcript,
+      modeManager.getMode(),
     );
 
     if ("allow" in decision) {

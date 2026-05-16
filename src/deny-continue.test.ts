@@ -13,13 +13,14 @@ function makeConfig(overrides?: Partial<ResolvedConfig["denyAndContinue"]>): Res
       hardDeny: [],
       softDeny: [],
       allow: [],
+      timeoutMs: 3000,
     },
     denyAndContinue: {
       maxConsecutiveDenials: 3,
       maxTotalDenials: 20,
       ...overrides,
     },
-  } as ResolvedConfig;
+  };
 }
 
 function makeCtx(hasUI = true): ExtensionContext {

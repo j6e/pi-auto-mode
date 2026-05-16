@@ -5,12 +5,12 @@
   "status": "active",
   "autoContinue": true,
   "usage": {
-    "tokensUsed": 1615878,
-    "activeSeconds": 2191
+    "tokensUsed": 3991293,
+    "activeSeconds": 4382
   },
   "sisyphus": false,
   "createdAt": "2026-05-16T01:05:19.786Z",
-  "updatedAt": "2026-05-16T01:43:07.571Z",
+  "updatedAt": "2026-05-16T02:11:40.985Z",
   "activePath": ".pi/goals/active_goal_2026051603051978_mp7n9siy-uqh4ti.md"
 }
 
@@ -23,5 +23,5 @@ In the repo there are Issues describing the PRD #1 and 6 different PRs ready to 
 - Status: running
 - Auto-continue: on
 - Sisyphus mode: no
-- Time spent: 36m31s
-- Tokens used: 1.6M (1,615,878) tokens
+- Time spent: 1h13m02s
+- Tokens used: 4M (3,991,293) tokens
