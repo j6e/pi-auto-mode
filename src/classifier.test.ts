@@ -32,12 +32,16 @@ function makeMockModel(): Model<any> {
 function makeMockCtx(model?: Model<any>): ExtensionContext {
   return {
     cwd: "/project",
+    hasUI: true,
     model: model ?? makeMockModel(),
     modelRegistry: {
       find: vi.fn().mockReturnValue(model ?? makeMockModel()),
     },
     sessionManager: {
       getEntries: vi.fn().mockReturnValue([]),
+    },
+    ui: {
+      setStatus: vi.fn(),
     },
   } as unknown as ExtensionContext;
 }
@@ -150,6 +154,31 @@ describe("classify", () => {
     expect(result.reason).toBe("Safe command");
     expect(result.confidence).toBe("high");
     expect(result.category).toBe("user_intent");
+  });
+
+  it("sets auto-mode: classifying... status during classification and restores it after", async () => {
+    const mockComplete = vi.fn().mockResolvedValue(
+      makeToolCallMessage({
+        decision: "allow",
+        reason: "Safe",
+        confidence: "high",
+        category: "user_intent",
+      }),
+    );
+
+    const ctx = makeMockCtx();
+    await classify(
+      DEFAULT_CONFIG,
+      "bash",
+      { command: "npm test" },
+      [],
+      ctx,
+      "auto",
+      { complete: mockComplete },
+    );
+
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: classifying...");
+    expect(ctx.ui.setStatus).toHaveBeenLastCalledWith("auto-mode", "auto-mode: auto");
   });
 
   it("strips assistant and tool_result messages from transcript", async () => {
@@ -294,5 +323,23 @@ describe("classify", () => {
         complete: mockComplete,
       }),
     ).rejects.toThrow("malformed");
+  });
+
+  it("returns block when no model is available", async () => {
+    const ctx = makeMockCtx();
+    ctx.model = undefined;
+    ctx.modelRegistry.find = vi.fn().mockReturnValue(undefined);
+
+    const result = await classify(
+      DEFAULT_CONFIG,
+      "bash",
+      { command: "ls" },
+      [],
+      ctx,
+      "auto",
+    );
+
+    expect(result.decision).toBe("block");
+    expect(result.reason).toContain("no model available");
   });
 });

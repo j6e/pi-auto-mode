@@ -11,7 +11,9 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "typebox": "*"
   },
   "pi": {
     "extensions": ["./src/index.ts"]
