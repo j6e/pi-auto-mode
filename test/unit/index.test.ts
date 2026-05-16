@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, Message, Model } from "@earendil-works/pi-ai";
-import extensionFactory from "./index";
+import extensionFactory from "../../src/index";
 
 vi.mock("@earendil-works/pi-ai", async () => {
   const actual = await vi.importActual<typeof import("@earendil-works/pi-ai")>("@earendil-works/pi-ai");

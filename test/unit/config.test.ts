@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { resolveConfig, loadConfig } from "./config";
-import type { AutoModeSettings } from "./types";
+import { resolveConfig, loadConfig } from "../../src/config";
+import type { AutoModeSettings } from "../../src/types";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";

@@ -4,9 +4,9 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { complete, getModel, StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
-import { buildPrompt, parseClassifierToolCall } from "./classifier";
+import { buildPrompt, parseClassifierToolCall } from "../../src/classifier";
 import type { AssistantMessage, Context, Tool } from "@earendil-works/pi-ai";
-import type { ResolvedConfig } from "./types";
+import type { ResolvedConfig } from "../../src/types";
 
 const TEST_CONFIG: ResolvedConfig = {
   defaultMode: "auto",

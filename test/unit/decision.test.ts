@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { makeDecision } from "./decision";
-import type { PermissionMode, ResolvedConfig } from "./types";
+import { makeDecision } from "../../src/decision";
+import type { PermissionMode, ResolvedConfig } from "../../src/types";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 vi.mock("@earendil-works/pi-ai", () => ({

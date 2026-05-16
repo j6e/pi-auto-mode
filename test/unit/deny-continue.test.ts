@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { createDenyContinueManager } from "./deny-continue";
-import type { ResolvedConfig } from "./types";
+import { createDenyContinueManager } from "../../src/deny-continue";
+import type { ResolvedConfig } from "../../src/types";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 function makeConfig(overrides?: Partial<ResolvedConfig["denyAndContinue"]>): ResolvedConfig {

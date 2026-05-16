@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { evaluateTier, isProtectedPath } from "./tiers";
+import { evaluateTier, isProtectedPath } from "../../src/tiers";
 
 describe("isProtectedPath", () => {
   it("blocks .git/", () => {

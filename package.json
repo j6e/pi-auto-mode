@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "A Claude auto mode clone for pi",
   "keywords": ["pi-package"],
+  "files": [
+    "src/**/*.ts",
+    "README.md"
+  ],
   "scripts": {
     "test": "vitest run"
   },

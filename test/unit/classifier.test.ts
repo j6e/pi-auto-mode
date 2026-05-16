@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildPrompt, classify, parseClassifierToolCall } from "./classifier";
-import type { ResolvedConfig } from "./types";
+import { buildPrompt, classify, parseClassifierToolCall } from "../../src/classifier";
+import type { ResolvedConfig } from "../../src/types";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Model } from "@earendil-works/pi-ai";
 import type { AssistantMessage, Message } from "@earendil-works/pi-ai";

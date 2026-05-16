@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveInitialMode, cycleMode, createModeManager } from "./mode";
-import type { PermissionMode } from "./types";
+import { resolveInitialMode, cycleMode, createModeManager } from "../../src/mode";
+import type { PermissionMode } from "../../src/types";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 describe("resolveInitialMode", () => {
