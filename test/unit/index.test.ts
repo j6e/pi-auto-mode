@@ -251,7 +251,15 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
           { type: "message", message: abandonedMessage },
           { type: "message", message: activeMessage },
         ]),
-        getBranch: vi.fn().mockReturnValue([]),
+        getBranch: vi.fn().mockReturnValue([
+          {
+            type: "message",
+            id: "active-shell-intent",
+            parentId: null,
+            timestamp: "2026-01-01T00:00:00.000Z",
+            message: activeMessage,
+          },
+        ]),
         buildSessionContext: vi.fn().mockReturnValue({
           messages: [activeMessage],
           thinkingLevel: "off",
@@ -301,7 +309,15 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
           { type: "message", message: abandonedMessage },
           { type: "message", message: activeMessage },
         ]),
-        getBranch: vi.fn().mockReturnValue([]),
+        getBranch: vi.fn().mockReturnValue([
+          {
+            type: "message",
+            id: "active-push-intent",
+            parentId: null,
+            timestamp: "2026-01-01T00:00:00.000Z",
+            message: activeMessage,
+          },
+        ]),
         buildSessionContext: vi.fn().mockReturnValue({
           messages: [activeMessage],
           thinkingLevel: "off",

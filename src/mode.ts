@@ -22,7 +22,7 @@ export function resolveInitialMode(
   // 2. Session state (most recent)
   let sessionMode: PermissionMode | undefined;
   for (const entry of sessionEntries) {
-    if (entry.customType === undefined || entry.customType === "auto-mode-state") {
+    if (entry.customType === "auto-mode-state") {
       const data = entry.data as Record<string, unknown> | undefined;
       if (data && isValidMode(data.mode)) {
         sessionMode = data.mode;

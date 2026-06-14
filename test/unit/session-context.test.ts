@@ -16,17 +16,48 @@ describe("session context adapter", () => {
     };
 
     const ctx = makeCtx({
-      buildSessionContext: vi.fn().mockReturnValue({
-        messages: [
-          { role: "branchSummary", summary: "Abandoned branch said do not run shell commands.", fromId: "old", timestamp: 0 },
-          { role: "compactionSummary", summary: "Earlier generated summary", tokensBefore: 1000, timestamp: 0 },
-          activeUser,
-          {
+      getBranch: vi.fn().mockReturnValue([
+        {
+          type: "branch_summary",
+          id: "summary-1",
+          parentId: null,
+          timestamp: "2026-01-01T00:00:00.000Z",
+          fromId: "old",
+          summary: "Abandoned branch said do not run shell commands.",
+        },
+        {
+          type: "compaction",
+          id: "compaction-1",
+          parentId: "summary-1",
+          timestamp: "2026-01-01T00:00:01.000Z",
+          summary: "Earlier generated summary",
+          firstKeptEntryId: "msg-1",
+          tokensBefore: 1000,
+        },
+        {
+          type: "message",
+          id: "msg-1",
+          parentId: "compaction-1",
+          timestamp: "2026-01-01T00:00:02.000Z",
+          message: activeUser,
+        },
+        {
+          type: "message",
+          id: "msg-2",
+          parentId: "msg-1",
+          timestamp: "2026-01-01T00:00:03.000Z",
+          message: {
             role: "assistant",
             content: [{ type: "text", text: "I will run tests." }],
             timestamp: 2,
           },
-          {
+        },
+        {
+          type: "message",
+          id: "msg-3",
+          parentId: "msg-2",
+          timestamp: "2026-01-01T00:00:04.000Z",
+          message: {
             role: "toolResult",
             toolCallId: "tc-1",
             toolName: "bash",
@@ -34,10 +65,8 @@ describe("session context adapter", () => {
             isError: false,
             timestamp: 3,
           },
-        ],
-        thinkingLevel: "off",
-        model: null,
-      }),
+        },
+      ]),
     });
 
     expect(getClassifierTranscript(ctx)).toEqual([activeUser]);
@@ -52,6 +81,8 @@ describe("session context adapter", () => {
       ]),
     });
 
-    expect(getActiveAutoModeStateEntries(ctx)).toEqual([{ data: { mode: "auto" } }]);
+    expect(getActiveAutoModeStateEntries(ctx)).toEqual([
+      { customType: "auto-mode-state", data: { mode: "auto" } },
+    ]);
   });
 });
