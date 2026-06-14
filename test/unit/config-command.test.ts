@@ -19,14 +19,15 @@ function makeCtx(cwd: string, trusted: boolean): ExtensionContext {
 
 function makeDeps(projectDir: string, homeDir: string, includeProject = false) {
   let config: ResolvedConfig = loadConfig(projectDir, homeDir, { includeProject });
+  function loadForContext(ctx: ExtensionContext) {
+    const includesProject = (ctx as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
+    config = loadConfig(ctx.cwd ?? projectDir, homeDir, { includeProject: includesProject });
+    return { config, includesProject };
+  }
   return {
     deps: {
-      getConfig: () => config,
-      reloadConfigForContext: vi.fn((ctx: ExtensionContext) => {
-        const includeProject = (ctx as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
-        config = loadConfig(ctx.cwd ?? projectDir, homeDir, { includeProject });
-        return config;
-      }),
+      getEffectiveConfig: vi.fn(loadForContext),
+      reloadConfigForContext: vi.fn(loadForContext),
       getMode: vi.fn<[], PermissionMode>().mockReturnValue("off"),
       setMode: vi.fn(),
     },

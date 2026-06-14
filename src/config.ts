@@ -183,10 +183,10 @@ export function resolveConfig(
 }
 
 export interface LoadConfigOptions {
-  includeProject?: boolean;
+  includeProject: boolean;
 }
 
-export function loadConfig(cwd: string, homeDir = os.homedir(), options: LoadConfigOptions = {}): ResolvedConfig {
+export function loadConfig(cwd: string, homeDir = os.homedir(), options: LoadConfigOptions): ResolvedConfig {
   let globalSettings: AutoModeSettings | undefined;
   let projectSettings: AutoModeSettings | undefined;
 
@@ -201,7 +201,7 @@ export function loadConfig(cwd: string, homeDir = os.homedir(), options: LoadCon
     // file doesn't exist or is malformed — proceed without global settings
   }
 
-  if (options.includeProject ?? false) {
+  if (options.includeProject) {
     const projectSettingsPath = path.join(cwd, ".pi", "settings.json");
     try {
       const raw = fs.readFileSync(projectSettingsPath, "utf-8");

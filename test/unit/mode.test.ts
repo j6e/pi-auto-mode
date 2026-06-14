@@ -137,9 +137,9 @@ describe("createModeManager", () => {
 
   it("reloads trusted project config before forcing non-interactive mode off", () => {
     const pi = makeMockPi(); // no flag
-    const reloadConfigForContext = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
+    const reloadConfigForContext = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
     const manager = createModeManager(pi, "auto", {
-      getConfig: vi.fn().mockReturnValue({ defaultMode: "off" }),
+      getEffectiveConfig: vi.fn().mockReturnValue({ config: { defaultMode: "off" }, includesProject: false }),
       reloadConfigForContext,
     } as any);
     manager.setup();
@@ -180,9 +180,9 @@ describe("createModeManager", () => {
 
   it("reloads config from project context before resolving initial mode", () => {
     const pi = makeMockPi();
-    const reloadConfigForContext = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
+    const reloadConfigForContext = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
     const manager = createModeManager(pi, "off", {
-      getConfig: vi.fn().mockReturnValue({ defaultMode: "off" }),
+      getEffectiveConfig: vi.fn().mockReturnValue({ config: { defaultMode: "off" }, includesProject: false }),
       reloadConfigForContext,
     } as any);
     manager.setup();

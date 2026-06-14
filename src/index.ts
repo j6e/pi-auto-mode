@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
 import { loadConfig } from "./config";
 import { createModeManager } from "./mode";
@@ -9,12 +9,16 @@ import { isProjectTrusted } from "./project-trust";
 
 export default function (pi: ExtensionAPI) {
   let config = loadConfig(process.cwd(), undefined, { includeProject: false });
+
+  function loadEffectiveConfig(ctx: ExtensionContext) {
+    const includesProject = isProjectTrusted(ctx);
+    config = loadConfig(ctx.cwd, undefined, { includeProject: includesProject });
+    return { config, includesProject };
+  }
+
   const modeManager = createModeManager(pi, config.defaultMode, {
-    getConfig: () => config,
-    reloadConfigForContext: (ctx) => {
-      config = loadConfig(ctx.cwd, undefined, { includeProject: isProjectTrusted(ctx) });
-      return config;
-    },
+    getEffectiveConfig: loadEffectiveConfig,
+    reloadConfigForContext: loadEffectiveConfig,
   });
   const denyManager = createDenyContinueManager(() => config);
   modeManager.setup();

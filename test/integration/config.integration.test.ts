@@ -129,7 +129,7 @@ describe("loadConfig integration", () => {
 
     fs.mkdirSync(projectDir, { recursive: true });
 
-    const config = loadConfig(projectDir, homeDir);
+    const config = loadConfig(projectDir, homeDir, { includeProject: false });
     expect(config.defaultMode).toBe("auto");
     expect(config.classifier.model).toBe("anthropic/claude-sonnet-4");
   });
@@ -138,7 +138,7 @@ describe("loadConfig integration", () => {
     const projectDir = path.join(tmpDir, "empty-project");
     fs.mkdirSync(projectDir, { recursive: true });
 
-    const config = loadConfig(projectDir, path.join(tmpDir, "nonexistent"));
+    const config = loadConfig(projectDir, path.join(tmpDir, "nonexistent"), { includeProject: false });
     expect(config.defaultMode).toBe("off");
     expect(config.classifier.model).toBeNull();
     expect(config.classifier.prompt).toBeNull();
