@@ -2,6 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { PermissionMode, ResolvedConfig } from "./types";
 import { handleAutoModeCommand } from "./config-command";
 import { getActiveAutoModeStateEntries } from "./session-context";
+import { isProjectTrusted } from "./project-trust";
 
 const MODES: PermissionMode[] = ["off", "auto", "dontAsk"];
 
@@ -36,10 +37,6 @@ export function resolveInitialMode(
 
   // 4. Off
   return "off";
-}
-
-function isProjectTrusted(ctx: ExtensionContext): boolean {
-  return (ctx as unknown as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
 }
 
 export function cycleMode(current: PermissionMode): PermissionMode {

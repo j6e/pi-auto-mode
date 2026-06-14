@@ -3,6 +3,7 @@ import * as path from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AutoModeSettings, PermissionMode, ResolvedConfig } from "./types";
 import { isValidMode } from "./mode";
+import { isProjectTrusted } from "./project-trust";
 
 const LIST_KEYS = new Set([
   "classifier.environment",
@@ -89,10 +90,6 @@ function parseValue(key: string, raw: string): unknown {
     return n;
   }
   return raw;
-}
-
-function isProjectTrusted(ctx: ExtensionContext): boolean {
-  return (ctx as unknown as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
 }
 
 function format(config: ResolvedConfig): string {

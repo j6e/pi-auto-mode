@@ -211,6 +211,23 @@ describe("loadConfig", () => {
     expect(config.classifier.model).toBeNull();
   });
 
+  it("ignores project settings by default", () => {
+    fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, ".pi", "settings.json"),
+      JSON.stringify({
+        autoMode: {
+          defaultMode: "auto",
+          classifier: { model: "openai/gpt-4o" },
+        },
+      }),
+    );
+
+    const config = loadConfig(tmpDir);
+    expect(config.defaultMode).toBe("off");
+    expect(config.classifier.model).toBeNull();
+  });
+
   it("falls back to defaults when no settings files exist", () => {
     const config = loadConfig(tmpDir);
     expect(config.defaultMode).toBe("off");

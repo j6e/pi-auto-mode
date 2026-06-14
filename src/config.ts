@@ -201,7 +201,7 @@ export function loadConfig(cwd: string, homeDir = os.homedir(), options: LoadCon
     // file doesn't exist or is malformed — proceed without global settings
   }
 
-  if (options.includeProject ?? true) {
+  if (options.includeProject ?? false) {
     const projectSettingsPath = path.join(cwd, ".pi", "settings.json");
     try {
       const raw = fs.readFileSync(projectSettingsPath, "utf-8");
