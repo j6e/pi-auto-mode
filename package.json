@@ -1,10 +1,21 @@
 {
-  "name": "pi-auto-mode",
+  "name": "@j6e/pi-auto-mode",
   "version": "0.1.1",
   "description": "A Claude auto mode clone for pi",
+  "license": "MIT",
+  "author": "Joan G. Esquerdo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/j6e/pi-auto-mode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/j6e/pi-auto-mode/issues"
+  },
+  "homepage": "https://github.com/j6e/pi-auto-mode#readme",
   "keywords": [
     "pi-package"
   ],
+  "type": "module",
   "files": [
     "src/**/*.ts",
     "README.md"
@@ -12,14 +23,20 @@
   "scripts": {
     "test": "vitest run"
   },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+  "publishConfig": {
+    "access": "public"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
     "@earendil-works/pi-ai": "^0.79.3",
     "@earendil-works/pi-coding-agent": "^0.79.3",
-    "typebox": "^1.2.10"
+    "typebox": "^1.2.10",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
   },
   "pi": {
     "extensions": [
