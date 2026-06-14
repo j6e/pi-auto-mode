@@ -117,47 +117,14 @@ function extractArgsFromToolCall(toolCall: { arguments: unknown } | ToolCall): C
   return isValidDecision(args) ? args : null;
 }
 
-function extractArgsFromText(text: string): ClassifierDecision | null {
-  // Try to find JSON in the text (with or without code fences)
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
-  const jsonStr = jsonMatch ? jsonMatch[1]!.trim() : text.trim();
-  try {
-    const parsed = JSON.parse(jsonStr);
-    return isValidDecision(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 export function parseClassifierToolCall(message: AssistantMessage): ClassifierDecision | null {
-  // Prefer a matching tool call
   const toolCall = message.content.find(
     (c): c is ToolCall =>
       c.type === "toolCall" && "name" in c && c.name === CLASSIFIER_TOOL_NAME,
   );
 
-  if (toolCall) {
-    const parsed = extractArgsFromToolCall(toolCall);
-    if (parsed) return parsed;
-  }
-
-  // Fallback: try to parse JSON from text content
-  for (const c of message.content) {
-    if (c.type === "text") {
-      const parsed = extractArgsFromText(c.text);
-      if (parsed) return parsed;
-    }
-  }
-
-  // Fallback: some reasoning models embed the decision in thinking blocks
-  for (const c of message.content) {
-    if (c.type === "thinking") {
-      const parsed = extractArgsFromText(c.thinking);
-      if (parsed) return parsed;
-    }
-  }
-
-  return null;
+  if (!toolCall) return null;
+  return extractArgsFromToolCall(toolCall);
 }
 
 export interface ClassifierDeps {

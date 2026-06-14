@@ -137,7 +137,7 @@ describe("parseClassifierToolCall", () => {
     });
   });
 
-  it("falls back to parsing JSON from text content", () => {
+  it("rejects JSON returned as text instead of the classifier tool call", () => {
     const msg: AssistantMessage = {
       role: "assistant",
       content: [{ type: "text", text: '{"decision":"block","reason":"Bad","confidence":"low","category":"security"}' }],
@@ -148,13 +148,7 @@ describe("parseClassifierToolCall", () => {
       stopReason: "stop" as any,
       timestamp: Date.now(),
     };
-    const result = parseClassifierToolCall(msg);
-    expect(result).toEqual({
-      decision: "block",
-      reason: "Bad",
-      confidence: "low",
-      category: "security",
-    });
+    expect(parseClassifierToolCall(msg)).toBeNull();
   });
 
   it("ignores tool calls with wrong name", () => {
@@ -196,7 +190,7 @@ describe("parseClassifierToolCall", () => {
     expect(parseClassifierToolCall(msg)).toBeNull();
   });
 
-  it("falls back to parsing JSON from thinking content for reasoning models", () => {
+  it("rejects JSON returned in thinking content instead of the classifier tool call", () => {
     const msg: AssistantMessage = {
       role: "assistant",
       content: [
@@ -212,13 +206,7 @@ describe("parseClassifierToolCall", () => {
       stopReason: "stop" as any,
       timestamp: Date.now(),
     };
-    const result = parseClassifierToolCall(msg);
-    expect(result).toEqual({
-      decision: "allow",
-      reason: "Safe operation",
-      confidence: "high",
-      category: "user_intent",
-    });
+    expect(parseClassifierToolCall(msg)).toBeNull();
   });
 
   it("prefers toolCall over text and thinking content", () => {
