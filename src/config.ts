@@ -182,7 +182,11 @@ export function resolveConfig(
   };
 }
 
-export function loadConfig(cwd: string, homeDir = os.homedir()): ResolvedConfig {
+export interface LoadConfigOptions {
+  includeProject?: boolean;
+}
+
+export function loadConfig(cwd: string, homeDir = os.homedir(), options: LoadConfigOptions = {}): ResolvedConfig {
   let globalSettings: AutoModeSettings | undefined;
   let projectSettings: AutoModeSettings | undefined;
 
@@ -197,15 +201,17 @@ export function loadConfig(cwd: string, homeDir = os.homedir()): ResolvedConfig 
     // file doesn't exist or is malformed — proceed without global settings
   }
 
-  const projectSettingsPath = path.join(cwd, ".pi", "settings.json");
-  try {
-    const raw = fs.readFileSync(projectSettingsPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object" && "autoMode" in parsed) {
-      projectSettings = parsed.autoMode as AutoModeSettings;
+  if (options.includeProject ?? true) {
+    const projectSettingsPath = path.join(cwd, ".pi", "settings.json");
+    try {
+      const raw = fs.readFileSync(projectSettingsPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && "autoMode" in parsed) {
+        projectSettings = parsed.autoMode as AutoModeSettings;
+      }
+    } catch {
+      // file doesn't exist or is malformed — proceed without project settings
     }
-  } catch {
-    // file doesn't exist or is malformed — proceed without project settings
   }
 
   return resolveConfig(globalSettings, projectSettings);

@@ -177,7 +177,7 @@ describe("loadConfig", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("loads project settings from .pi/settings.json", () => {
+  it("loads project settings from .pi/settings.json when project config is included", () => {
     fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
     fs.writeFileSync(
       path.join(tmpDir, ".pi", "settings.json"),
@@ -189,9 +189,26 @@ describe("loadConfig", () => {
       }),
     );
 
-    const config = loadConfig(tmpDir);
+    const config = loadConfig(tmpDir, undefined, { includeProject: true });
     expect(config.defaultMode).toBe("auto");
     expect(config.classifier.model).toBe("openai/gpt-4o");
+  });
+
+  it("ignores project settings when project config is not included", () => {
+    fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, ".pi", "settings.json"),
+      JSON.stringify({
+        autoMode: {
+          defaultMode: "auto",
+          classifier: { model: "openai/gpt-4o" },
+        },
+      }),
+    );
+
+    const config = loadConfig(tmpDir, undefined, { includeProject: false });
+    expect(config.defaultMode).toBe("off");
+    expect(config.classifier.model).toBeNull();
   });
 
   it("falls back to defaults when no settings files exist", () => {

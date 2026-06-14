@@ -82,6 +82,9 @@ describe("createModeManager", () => {
       ui: {
         setStatus: vi.fn(),
       },
+      cwd: "/home/user/project",
+      hasUI: true,
+      isProjectTrusted: vi.fn().mockReturnValue(false),
       sessionManager: {
         getEntries: vi.fn().mockReturnValue(entries),
         getBranch: vi.fn().mockReturnValue(entries),
@@ -152,6 +155,26 @@ describe("createModeManager", () => {
     sessionStartHandler({}, ctx);
 
     expect(manager.getMode()).toBe("auto");
+  });
+
+  it("reloads config from trusted project context before resolving initial mode", () => {
+    const pi = makeMockPi();
+    const reloadConfig = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
+    const manager = createModeManager(pi, "off", {
+      getConfig: vi.fn().mockReturnValue({ defaultMode: "off" }),
+      reloadConfig,
+    } as any);
+    manager.setup();
+
+    const ctx = makeMockCtx([]);
+    (ctx as any).isProjectTrusted = vi.fn().mockReturnValue(true);
+
+    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
+    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
+    sessionStartHandler({}, ctx);
+
+    expect(reloadConfig).toHaveBeenCalledWith("/home/user/project", true);
+    expect(manager.getMode()).toBe("dontAsk");
   });
 
   it("falls back to settings default when only an abandoned branch has auto-mode state", () => {

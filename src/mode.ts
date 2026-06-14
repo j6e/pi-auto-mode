@@ -38,6 +38,10 @@ export function resolveInitialMode(
   return "off";
 }
 
+function isProjectTrusted(ctx: ExtensionContext): boolean {
+  return (ctx as unknown as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
+}
+
 export function cycleMode(current: PermissionMode): PermissionMode {
   const idx = MODES.indexOf(current);
   return MODES[(idx + 1) % MODES.length];
@@ -53,7 +57,7 @@ export interface ModeManager {
 export function createModeManager(
   pi: ExtensionAPI,
   settingsDefault: PermissionMode,
-  configDeps?: { getConfig(): ResolvedConfig; reloadConfig(cwd?: string): ResolvedConfig },
+  configDeps?: { getConfig(): ResolvedConfig; reloadConfig(cwd?: string, includeProject?: boolean): ResolvedConfig },
 ): ModeManager {
   let currentMode: PermissionMode = "off";
 
@@ -117,10 +121,11 @@ export function createModeManager(
           return;
         }
 
+        const effectiveConfig = configDeps?.reloadConfig(ctx.cwd, isProjectTrusted(ctx)) ?? { defaultMode: settingsDefault };
         const mode = resolveInitialMode(
           flagValue,
           getActiveAutoModeStateEntries(ctx),
-          settingsDefault,
+          effectiveConfig.defaultMode,
         );
         currentMode = mode;
         updateStatus(ctx);

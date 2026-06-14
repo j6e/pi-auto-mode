@@ -7,11 +7,11 @@ import { createDenyContinueManager } from "./deny-continue";
 import { getClassifierTranscript } from "./session-context";
 
 export default function (pi: ExtensionAPI) {
-  let config = loadConfig(process.cwd());
+  let config = loadConfig(process.cwd(), undefined, { includeProject: false });
   const modeManager = createModeManager(pi, config.defaultMode, {
     getConfig: () => config,
-    reloadConfig: (cwd?: string) => {
-      config = loadConfig(cwd ?? process.cwd());
+    reloadConfig: (cwd?: string, includeProject = false) => {
+      config = loadConfig(cwd ?? process.cwd(), undefined, { includeProject });
       return config;
     },
   });

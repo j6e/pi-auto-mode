@@ -91,6 +91,10 @@ function parseValue(key: string, raw: string): unknown {
   return raw;
 }
 
+function isProjectTrusted(ctx: ExtensionContext): boolean {
+  return (ctx as unknown as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
+}
+
 function format(config: ResolvedConfig): string {
   return JSON.stringify(config, null, 2);
 }
@@ -111,7 +115,7 @@ function formatStatusConfig(config: ResolvedConfig): string {
 
 export interface AutoModeCommandDeps {
   getConfig(): ResolvedConfig;
-  reloadConfig(cwd?: string): ResolvedConfig;
+  reloadConfig(cwd?: string, includeProject?: boolean): ResolvedConfig;
   getMode(): PermissionMode;
   setMode(mode: PermissionMode, ctx: ExtensionContext): void;
 }
@@ -157,8 +161,15 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (second === "reset") {
       deletePath(autoMode, key);
       writeSettings(ctx.cwd, settings);
-      deps.reloadConfig(ctx.cwd);
+      const includeProject = isProjectTrusted(ctx);
+      deps.reloadConfig(ctx.cwd, includeProject);
       ctx.ui.notify(`Reset ${key}`, "info");
+      if (!includeProject) {
+        ctx.ui.notify(
+          "Project is not trusted, so project-local auto-mode settings are not currently loaded. Review .pi/settings.json before trusting the project.",
+          "warning",
+        );
+      }
       return;
     }
 
@@ -184,8 +195,15 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     }
 
     writeSettings(ctx.cwd, settings);
-    deps.reloadConfig(ctx.cwd);
+    const includeProject = isProjectTrusted(ctx);
+    deps.reloadConfig(ctx.cwd, includeProject);
     ctx.ui.notify(`Updated ${key}`, "info");
+    if (!includeProject) {
+      ctx.ui.notify(
+        "Project is not trusted, so project-local auto-mode settings are not currently loaded. Review .pi/settings.json before trusting the project.",
+        "warning",
+      );
+    }
   } catch (error) {
     ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
   }

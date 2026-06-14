@@ -18,7 +18,7 @@ describe("loadConfig integration", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("merges global and project settings with project winning", () => {
+  it("merges global and project settings with project winning when project config is included", () => {
     const homeDir = path.join(tmpDir, "home");
     const projectDir = path.join(tmpDir, "project");
 
@@ -66,7 +66,7 @@ describe("loadConfig integration", () => {
       }),
     );
 
-    const config = loadConfig(projectDir, homeDir);
+    const config = loadConfig(projectDir, homeDir, { includeProject: true });
 
     expect(config.defaultMode).toBe("dontAsk");
     expect(config.classifier.model).toBe("openai/gpt-4o");
@@ -79,6 +79,37 @@ describe("loadConfig integration", () => {
     expect(config.classifier.allow).not.toContain("$defaults");
     expect(config.denyAndContinue.maxConsecutiveDenials).toBe(2);
     expect(config.denyAndContinue.maxTotalDenials).toBe(10);
+  });
+
+  it("falls back to global settings when project config is not included", () => {
+    const homeDir = path.join(tmpDir, "home");
+    const projectDir = path.join(tmpDir, "project");
+
+    fs.mkdirSync(path.join(homeDir, ".pi", "agent"), { recursive: true });
+    fs.writeFileSync(
+      path.join(homeDir, ".pi", "agent", "settings.json"),
+      JSON.stringify({
+        autoMode: {
+          defaultMode: "auto",
+          classifier: { model: "anthropic/claude-sonnet-4" },
+        },
+      }),
+    );
+
+    fs.mkdirSync(path.join(projectDir, ".pi"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, ".pi", "settings.json"),
+      JSON.stringify({
+        autoMode: {
+          defaultMode: "dontAsk",
+          classifier: { model: "openai/gpt-4o" },
+        },
+      }),
+    );
+
+    const config = loadConfig(projectDir, homeDir, { includeProject: false });
+    expect(config.defaultMode).toBe("auto");
+    expect(config.classifier.model).toBe("anthropic/claude-sonnet-4");
   });
 
   it("falls back to global settings when no project settings exist", () => {
