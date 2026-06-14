@@ -1,5 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { PermissionMode, ResolvedConfig } from "./types";
+import type { EffectiveConfigResult } from "./effective-config";
+import type { PermissionMode } from "./types";
 import { handleAutoModeCommand } from "./config-command";
 import { getActiveAutoModeStateEntries } from "./session-context";
 
@@ -52,8 +53,7 @@ export interface ModeManager {
 
 export function createModeManager(
   pi: ExtensionAPI,
-  settingsDefault: PermissionMode,
-  configDeps?: { getConfig(): ResolvedConfig; reloadConfig(cwd?: string): ResolvedConfig },
+  resolveEffectiveConfig: (ctx: ExtensionContext) => EffectiveConfigResult,
 ): ModeManager {
   let currentMode: PermissionMode = "off";
 
@@ -91,9 +91,8 @@ export function createModeManager(
             persistAndUpdate(cycleMode(currentMode), ctx);
             return;
           }
-          if (!configDeps) return;
           await handleAutoModeCommand(String(args), ctx, {
-            ...configDeps,
+            resolveEffectiveConfig,
             getMode: () => currentMode,
             setMode: (mode, commandCtx) => persistAndUpdate(mode, commandCtx),
           });
@@ -117,10 +116,11 @@ export function createModeManager(
           return;
         }
 
+        const effectiveConfig = resolveEffectiveConfig(ctx).config;
         const mode = resolveInitialMode(
           flagValue,
           getActiveAutoModeStateEntries(ctx),
-          settingsDefault,
+          effectiveConfig.defaultMode,
         );
         currentMode = mode;
         updateStatus(ctx);

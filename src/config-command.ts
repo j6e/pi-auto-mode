@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { EffectiveConfigResult } from "./effective-config";
 import type { AutoModeSettings, PermissionMode, ResolvedConfig } from "./types";
 import { isValidMode } from "./mode";
 
@@ -109,9 +110,15 @@ function formatStatusConfig(config: ResolvedConfig): string {
   );
 }
 
+function notifyUntrustedWrite(ctx: ExtensionContext) {
+  ctx.ui.notify(
+    "Project is not trusted, so project-local auto-mode settings are not currently loaded. Review .pi/settings.json before trusting the project.",
+    "warning",
+  );
+}
+
 export interface AutoModeCommandDeps {
-  getConfig(): ResolvedConfig;
-  reloadConfig(cwd?: string): ResolvedConfig;
+  resolveEffectiveConfig(ctx: ExtensionContext): EffectiveConfigResult;
   getMode(): PermissionMode;
   setMode(mode: PermissionMode, ctx: ExtensionContext): void;
 }
@@ -123,7 +130,8 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
   try {
     if (!first || first === "cycle") return;
     if (first === "status") {
-      ctx.ui.notify(`Mode: ${deps.getMode()}\n\nEffective config:\n${formatStatusConfig(deps.getConfig())}`, "info");
+      const { config } = deps.resolveEffectiveConfig(ctx);
+      ctx.ui.notify(`Mode: ${deps.getMode()}\n\nEffective config:\n${formatStatusConfig(config)}`, "info");
       return;
     }
     if (first === "set") {
@@ -135,7 +143,8 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (first !== "config") throw new Error("usage: /auto-mode [status|set|config]");
 
     if (!second) {
-      ctx.ui.notify(format(deps.getConfig()), "info");
+      const { config } = deps.resolveEffectiveConfig(ctx);
+      ctx.ui.notify(format(config), "info");
       return;
     }
     if (second === "edit") {
@@ -147,7 +156,8 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (!key) throw new Error("usage: /auto-mode config <get|set|add|remove|reset> <key> [value]");
 
     if (second === "get") {
-      ctx.ui.notify(JSON.stringify(getPath(deps.getConfig(), key), null, 2), "info");
+      const { config } = deps.resolveEffectiveConfig(ctx);
+      ctx.ui.notify(JSON.stringify(getPath(config, key), null, 2), "info");
       return;
     }
 
@@ -157,8 +167,9 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (second === "reset") {
       deletePath(autoMode, key);
       writeSettings(ctx.cwd, settings);
-      deps.reloadConfig(ctx.cwd);
+      const { includesProject } = deps.resolveEffectiveConfig(ctx);
       ctx.ui.notify(`Reset ${key}`, "info");
+      if (!includesProject) notifyUntrustedWrite(ctx);
       return;
     }
 
@@ -184,8 +195,9 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     }
 
     writeSettings(ctx.cwd, settings);
-    deps.reloadConfig(ctx.cwd);
+    const { includesProject } = deps.resolveEffectiveConfig(ctx);
     ctx.ui.notify(`Updated ${key}`, "info");
+    if (!includesProject) notifyUntrustedWrite(ctx);
   } catch (error) {
     ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
   }

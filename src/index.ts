@@ -1,21 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { Message } from "@earendil-works/pi-ai";
-import { loadConfig } from "./config";
+import { resolveEffectiveConfig } from "./effective-config";
 import { createModeManager } from "./mode";
 import { makeDecision } from "./decision";
 import { createDenyContinueManager } from "./deny-continue";
 import { getClassifierTranscript } from "./session-context";
 
 export default function (pi: ExtensionAPI) {
-  let config = loadConfig(process.cwd());
-  const modeManager = createModeManager(pi, config.defaultMode, {
-    getConfig: () => config,
-    reloadConfig: (cwd?: string) => {
-      config = loadConfig(cwd ?? process.cwd());
-      return config;
-    },
-  });
-  const denyManager = createDenyContinueManager(() => config);
+  const modeManager = createModeManager(pi, resolveEffectiveConfig);
+  const denyManager = createDenyContinueManager();
   modeManager.setup();
 
   pi.on("session_start", async (_event, _ctx) => {
@@ -23,6 +16,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
+    const { config } = resolveEffectiveConfig(ctx);
     const transcript: Message[] = getClassifierTranscript(ctx);
 
     const decision = await makeDecision(
@@ -47,7 +41,7 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(`Blocked: ${decision.reason}`, "warning");
     }
 
-    if (denyManager.isThresholdBreached()) {
+    if (denyManager.isThresholdBreached(config)) {
       if (ctx.hasUI) {
         const ok = await ctx.ui.confirm(
           "Auto-mode threshold reached",

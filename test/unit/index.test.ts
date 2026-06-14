@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createRequire } from "node:module";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { AssistantMessage, Message, Model } from "@earendil-works/pi-ai";
 import extensionFactory from "../../src/index";
@@ -12,6 +16,9 @@ vi.mock("@earendil-works/pi-ai", async () => {
 });
 
 import { complete } from "@earendil-works/pi-ai";
+
+const require = createRequire(import.meta.url);
+const nodeFs = require("node:fs") as typeof fs;
 
 function makeMockModel(): Model<any> {
   return {
@@ -96,6 +103,7 @@ function createMockContext(overrides?: Partial<ExtensionContext>): ExtensionCont
     },
     hasUI: true,
     cwd: "/home/user/project",
+    isProjectTrusted: vi.fn().mockReturnValue(false),
     model: makeMockModel(),
     modelRegistry: {
       find: vi.fn().mockReturnValue(makeMockModel()),
@@ -147,6 +155,116 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(complete).mockReset();
+  });
+
+  it("does not read project auto-mode config during extension initialization", () => {
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    const readSpy = vi.spyOn(nodeFs, "readFileSync");
+    try {
+      const projectSettingsPath = path.join(tmpDir, ".pi", "settings.json");
+      fs.mkdirSync(path.dirname(projectSettingsPath), { recursive: true });
+      fs.writeFileSync(projectSettingsPath, JSON.stringify({ autoMode: { defaultMode: "auto" } }));
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI();
+      extensionFactory(pi);
+
+      expect(readSpy).not.toHaveBeenCalledWith(projectSettingsPath, expect.anything());
+    } finally {
+      readSpy.mockRestore();
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("ignores project auto-mode config until the project is trusted", async () => {
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, ".pi", "settings.json"),
+        JSON.stringify({ autoMode: { defaultMode: "auto" } }),
+      );
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI();
+      extensionFactory(pi);
+
+      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) });
+      await runHandler(pi, "session_start", { reason: "startup" }, ctx);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: off");
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("loads project auto-mode config when the project is trusted", async () => {
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, ".pi", "settings.json"),
+        JSON.stringify({ autoMode: { defaultMode: "auto" } }),
+      );
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI();
+      extensionFactory(pi);
+
+      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) });
+      await runHandler(pi, "session_start", { reason: "startup" }, ctx);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: auto");
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves tool-call config from the current context instead of prior trusted loads", async () => {
+    vi.mocked(complete).mockResolvedValue(makeClassifierMessage("Project config is not trusted"));
+
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, ".pi", "settings.json"),
+        JSON.stringify({ autoMode: { tools: { alwaysAllow: ["bash"] } } }),
+      );
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI("auto");
+      extensionFactory(pi);
+
+      const trustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) });
+      await runHandler(pi, "session_start", { reason: "startup" }, trustedCtx);
+
+      const untrustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) });
+      await runHandler(pi, "session_start", { reason: "startup" }, untrustedCtx);
+
+      const blockResult = await runToolCall(
+        pi,
+        {
+          type: "tool_call" as const,
+          toolName: "bash" as const,
+          toolCallId: "tc-untrusted-bash",
+          input: { command: "echo should classify" },
+        },
+        untrustedCtx,
+      );
+
+      expect(complete).toHaveBeenCalled();
+      expect(blockResult).toEqual({ block: true, reason: expect.stringContaining("Project config is not trusted") });
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it("blocks a non-tiered tool in auto mode and replaces the result with a rich denial", async () => {
