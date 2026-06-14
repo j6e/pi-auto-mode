@@ -4,6 +4,7 @@ import { loadConfig } from "./config";
 import { createModeManager } from "./mode";
 import { makeDecision } from "./decision";
 import { createDenyContinueManager } from "./deny-continue";
+import { getClassifierTranscript } from "./session-context";
 
 export default function (pi: ExtensionAPI) {
   let config = loadConfig(process.cwd());
@@ -22,10 +23,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    const entries = ctx.sessionManager.getEntries();
-    const transcript: Message[] = entries
-      .filter((e) => e.type === "message")
-      .map((e) => (e as any).message);
+    const transcript: Message[] = getClassifierTranscript(ctx);
 
     const decision = await makeDecision(
       modeManager.getMode(),

@@ -103,6 +103,12 @@ function createMockContext(overrides?: Partial<ExtensionContext>): ExtensionCont
     },
     sessionManager: {
       getEntries: vi.fn().mockReturnValue([]),
+      getBranch: vi.fn().mockReturnValue([]),
+      buildSessionContext: vi.fn().mockReturnValue({
+        messages: [],
+        thinkingLevel: "off",
+        model: null,
+      }),
     } as any,
     shutdown: vi.fn(),
     ...overrides,
@@ -220,5 +226,105 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
 
     await runToolCall(pi, toolCallEvent, ctx);
     expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("Blocked"), "warning");
+  });
+
+  it("classifies with active-branch user intent and ignores abandoned shell-command intent", async () => {
+    vi.mocked(complete).mockResolvedValue(makeClassifierMessage("Allowed by active intent"));
+
+    const abandonedMessage: Message = {
+      role: "user",
+      content: "Do not run any shell commands.",
+      timestamp: 1,
+    };
+    const activeMessage: Message = {
+      role: "user",
+      content: "Please run the test suite.",
+      timestamp: 2,
+    };
+
+    const pi = createMockExtensionAPI("auto");
+    extensionFactory(pi);
+
+    const ctx = createMockContext({
+      sessionManager: {
+        getEntries: vi.fn().mockReturnValue([
+          { type: "message", message: abandonedMessage },
+          { type: "message", message: activeMessage },
+        ]),
+        getBranch: vi.fn().mockReturnValue([]),
+        buildSessionContext: vi.fn().mockReturnValue({
+          messages: [activeMessage],
+          thinkingLevel: "off",
+          model: null,
+        }),
+      } as any,
+    });
+    await runHandler(pi, "session_start", { reason: "startup" }, ctx);
+
+    await runToolCall(
+      pi,
+      {
+        type: "tool_call" as const,
+        toolName: "bash" as const,
+        toolCallId: "tc-bash-active-branch",
+        input: { command: "npm test" },
+      },
+      ctx,
+    );
+
+    const classifierMessages = vi.mocked(complete).mock.calls[0][1].messages;
+    const serialized = JSON.stringify(classifierMessages);
+    expect(serialized).toContain("Please run the test suite.");
+    expect(serialized).not.toContain("Do not run any shell commands.");
+  });
+
+  it("classifies with active-branch push intent and ignores abandoned do-not-push intent", async () => {
+    vi.mocked(complete).mockResolvedValue(makeClassifierMessage("Allowed by active push intent"));
+
+    const abandonedMessage: Message = {
+      role: "user",
+      content: "Do not push anything.",
+      timestamp: 1,
+    };
+    const activeMessage: Message = {
+      role: "user",
+      content: "Push this branch.",
+      timestamp: 2,
+    };
+
+    const pi = createMockExtensionAPI("auto");
+    extensionFactory(pi);
+
+    const ctx = createMockContext({
+      sessionManager: {
+        getEntries: vi.fn().mockReturnValue([
+          { type: "message", message: abandonedMessage },
+          { type: "message", message: activeMessage },
+        ]),
+        getBranch: vi.fn().mockReturnValue([]),
+        buildSessionContext: vi.fn().mockReturnValue({
+          messages: [activeMessage],
+          thinkingLevel: "off",
+          model: null,
+        }),
+      } as any,
+    });
+    await runHandler(pi, "session_start", { reason: "startup" }, ctx);
+
+    await runToolCall(
+      pi,
+      {
+        type: "tool_call" as const,
+        toolName: "bash" as const,
+        toolCallId: "tc-bash-push-active-branch",
+        input: { command: "git push" },
+      },
+      ctx,
+    );
+
+    const classifierMessages = vi.mocked(complete).mock.calls[0][1].messages;
+    const serialized = JSON.stringify(classifierMessages);
+    expect(serialized).toContain("Push this branch.");
+    expect(serialized).not.toContain("Do not push anything.");
   });
 });

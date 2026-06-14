@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import type { PermissionMode, ResolvedConfig } from "./types";
 import { handleAutoModeCommand } from "./config-command";
+import { getActiveAutoModeStateEntries } from "./session-context";
 
 const MODES: PermissionMode[] = ["off", "auto", "dontAsk"];
 
@@ -21,7 +22,7 @@ export function resolveInitialMode(
   // 2. Session state (most recent)
   let sessionMode: PermissionMode | undefined;
   for (const entry of sessionEntries) {
-    if (entry.customType === "auto-mode-state") {
+    if (entry.customType === undefined || entry.customType === "auto-mode-state") {
       const data = entry.data as Record<string, unknown> | undefined;
       if (data && isValidMode(data.mode)) {
         sessionMode = data.mode;
@@ -116,11 +117,11 @@ export function createModeManager(
           return;
         }
 
-        const entries = ctx.sessionManager.getEntries();
-        const customEntries = entries
-          .filter((e) => "customType" in e)
-          .map((e) => ({ customType: (e as any).customType, data: (e as any).data }));
-        const mode = resolveInitialMode(flagValue, customEntries, settingsDefault);
+        const mode = resolveInitialMode(
+          flagValue,
+          getActiveAutoModeStateEntries(ctx),
+          settingsDefault,
+        );
         currentMode = mode;
         updateStatus(ctx);
       });

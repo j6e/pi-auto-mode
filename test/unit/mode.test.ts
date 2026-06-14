@@ -84,6 +84,7 @@ describe("createModeManager", () => {
       },
       sessionManager: {
         getEntries: vi.fn().mockReturnValue(entries),
+        getBranch: vi.fn().mockReturnValue(entries),
       } as any,
     } as unknown as ExtensionContext;
   }
@@ -129,6 +130,47 @@ describe("createModeManager", () => {
     sessionStartHandler({}, ctx);
 
     expect(manager.getMode()).toBe("off");
+  });
+
+  it("restores mode from active branch and ignores later abandoned branch state", () => {
+    const pi = makeMockPi();
+    const manager = createModeManager(pi, "off");
+    manager.setup();
+
+    const ctx = makeMockCtx([]);
+    (ctx as any).hasUI = true;
+    (ctx.sessionManager as any).getEntries = vi.fn().mockReturnValue([
+      { type: "custom", customType: "auto-mode-state", data: { mode: "auto" } },
+      { type: "custom", customType: "auto-mode-state", data: { mode: "dontAsk" } },
+    ]);
+    (ctx.sessionManager as any).getBranch = vi.fn().mockReturnValue([
+      { type: "custom", customType: "auto-mode-state", data: { mode: "auto" } },
+    ]);
+
+    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
+    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
+    sessionStartHandler({}, ctx);
+
+    expect(manager.getMode()).toBe("auto");
+  });
+
+  it("falls back to settings default when only an abandoned branch has auto-mode state", () => {
+    const pi = makeMockPi();
+    const manager = createModeManager(pi, "dontAsk");
+    manager.setup();
+
+    const ctx = makeMockCtx([]);
+    (ctx as any).hasUI = true;
+    (ctx.sessionManager as any).getEntries = vi.fn().mockReturnValue([
+      { type: "custom", customType: "auto-mode-state", data: { mode: "auto" } },
+    ]);
+    (ctx.sessionManager as any).getBranch = vi.fn().mockReturnValue([]);
+
+    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
+    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
+    sessionStartHandler({}, ctx);
+
+    expect(manager.getMode()).toBe("dontAsk");
   });
 
   it("persists mode change via appendEntry and updates footer", () => {
