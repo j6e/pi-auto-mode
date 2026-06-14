@@ -135,6 +135,27 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("off");
   });
 
+  it("reloads trusted project config before forcing non-interactive mode off", () => {
+    const pi = makeMockPi(); // no flag
+    const reloadConfigForContext = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
+    const manager = createModeManager(pi, "auto", {
+      getConfig: vi.fn().mockReturnValue({ defaultMode: "off" }),
+      reloadConfigForContext,
+    } as any);
+    manager.setup();
+
+    const ctx = makeMockCtx([]);
+    (ctx as any).hasUI = false;
+    (ctx as any).isProjectTrusted = vi.fn().mockReturnValue(true);
+
+    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
+    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
+    sessionStartHandler({}, ctx);
+
+    expect(reloadConfigForContext).toHaveBeenCalledWith(ctx);
+    expect(manager.getMode()).toBe("off");
+  });
+
   it("restores mode from active branch and ignores later abandoned branch state", () => {
     const pi = makeMockPi();
     const manager = createModeManager(pi, "off");
@@ -157,12 +178,12 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("auto");
   });
 
-  it("reloads config from trusted project context before resolving initial mode", () => {
+  it("reloads config from project context before resolving initial mode", () => {
     const pi = makeMockPi();
-    const reloadConfig = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
+    const reloadConfigForContext = vi.fn().mockReturnValue({ defaultMode: "dontAsk" });
     const manager = createModeManager(pi, "off", {
       getConfig: vi.fn().mockReturnValue({ defaultMode: "off" }),
-      reloadConfig,
+      reloadConfigForContext,
     } as any);
     manager.setup();
 
@@ -173,7 +194,7 @@ describe("createModeManager", () => {
     const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
     sessionStartHandler({}, ctx);
 
-    expect(reloadConfig).toHaveBeenCalledWith("/home/user/project", true);
+    expect(reloadConfigForContext).toHaveBeenCalledWith(ctx);
     expect(manager.getMode()).toBe("dontAsk");
   });
 

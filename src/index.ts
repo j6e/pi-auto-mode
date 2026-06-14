@@ -5,13 +5,14 @@ import { createModeManager } from "./mode";
 import { makeDecision } from "./decision";
 import { createDenyContinueManager } from "./deny-continue";
 import { getClassifierTranscript } from "./session-context";
+import { isProjectTrusted } from "./project-trust";
 
 export default function (pi: ExtensionAPI) {
   let config = loadConfig(process.cwd(), undefined, { includeProject: false });
   const modeManager = createModeManager(pi, config.defaultMode, {
     getConfig: () => config,
-    reloadConfig: (cwd?: string, includeProject = false) => {
-      config = loadConfig(cwd ?? process.cwd(), undefined, { includeProject });
+    reloadConfigForContext: (ctx) => {
+      config = loadConfig(ctx.cwd, undefined, { includeProject: isProjectTrusted(ctx) });
       return config;
     },
   });

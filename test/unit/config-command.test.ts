@@ -22,8 +22,9 @@ function makeDeps(projectDir: string, homeDir: string, includeProject = false) {
   return {
     deps: {
       getConfig: () => config,
-      reloadConfig: vi.fn((cwd?: string, includeProject = false) => {
-        config = loadConfig(cwd ?? projectDir, homeDir, { includeProject });
+      reloadConfigForContext: vi.fn((ctx: ExtensionContext) => {
+        const includeProject = (ctx as { isProjectTrusted?: () => boolean }).isProjectTrusted?.() ?? false;
+        config = loadConfig(ctx.cwd ?? projectDir, homeDir, { includeProject });
         return config;
       }),
       getMode: vi.fn<[], PermissionMode>().mockReturnValue("off"),
@@ -109,7 +110,7 @@ describe("handleAutoModeCommand", () => {
 
     const projectSettings = JSON.parse(fs.readFileSync(path.join(projectDir, ".pi", "settings.json"), "utf-8"));
     expect(projectSettings.autoMode.defaultMode).toBe("auto");
-    expect(deps.reloadConfig).toHaveBeenCalledWith(projectDir, false);
+    expect(deps.reloadConfigForContext).toHaveBeenCalledWith(ctx);
     expect(getConfig().defaultMode).toBe("off");
     expect(ctx.ui.notify).toHaveBeenCalledWith(expect.stringContaining("not trusted"), "warning");
   });
@@ -124,7 +125,7 @@ describe("handleAutoModeCommand", () => {
 
     await handleAutoModeCommand("config set defaultMode auto", ctx, deps);
 
-    expect(deps.reloadConfig).toHaveBeenCalledWith(projectDir, true);
+    expect(deps.reloadConfigForContext).toHaveBeenCalledWith(ctx);
     expect(getConfig().defaultMode).toBe("auto");
     expect(ctx.ui.notify).toHaveBeenCalledWith("Updated defaultMode", "info");
   });

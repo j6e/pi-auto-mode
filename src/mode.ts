@@ -2,7 +2,6 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { PermissionMode, ResolvedConfig } from "./types";
 import { handleAutoModeCommand } from "./config-command";
 import { getActiveAutoModeStateEntries } from "./session-context";
-import { isProjectTrusted } from "./project-trust";
 
 const MODES: PermissionMode[] = ["off", "auto", "dontAsk"];
 
@@ -54,7 +53,7 @@ export interface ModeManager {
 export function createModeManager(
   pi: ExtensionAPI,
   settingsDefault: PermissionMode,
-  configDeps?: { getConfig(): ResolvedConfig; reloadConfig(cwd?: string, includeProject?: boolean): ResolvedConfig },
+  configDeps?: { getConfig(): ResolvedConfig; reloadConfigForContext(ctx: ExtensionContext): ResolvedConfig },
 ): ModeManager {
   let currentMode: PermissionMode = "off";
 
@@ -111,6 +110,8 @@ export function createModeManager(
       pi.on("session_start", async (_event, ctx) => {
         const flagValue = pi.getFlag("auto-mode");
 
+        const effectiveConfig = configDeps?.reloadConfigForContext(ctx) ?? { defaultMode: settingsDefault };
+
         // In non-interactive mode without explicit flag, force off
         if (!ctx.hasUI && !flagValue) {
           currentMode = "off";
@@ -118,7 +119,6 @@ export function createModeManager(
           return;
         }
 
-        const effectiveConfig = configDeps?.reloadConfig(ctx.cwd, isProjectTrusted(ctx)) ?? { defaultMode: settingsDefault };
         const mode = resolveInitialMode(
           flagValue,
           getActiveAutoModeStateEntries(ctx),

@@ -112,7 +112,7 @@ function formatStatusConfig(config: ResolvedConfig): string {
 
 export interface AutoModeCommandDeps {
   getConfig(): ResolvedConfig;
-  reloadConfig(cwd?: string, includeProject?: boolean): ResolvedConfig;
+  reloadConfigForContext(ctx: ExtensionContext): ResolvedConfig;
   getMode(): PermissionMode;
   setMode(mode: PermissionMode, ctx: ExtensionContext): void;
 }
@@ -158,10 +158,9 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (second === "reset") {
       deletePath(autoMode, key);
       writeSettings(ctx.cwd, settings);
-      const includeProject = isProjectTrusted(ctx);
-      deps.reloadConfig(ctx.cwd, includeProject);
+      deps.reloadConfigForContext(ctx);
       ctx.ui.notify(`Reset ${key}`, "info");
-      if (!includeProject) {
+      if (!isProjectTrusted(ctx)) {
         ctx.ui.notify(
           "Project is not trusted, so project-local auto-mode settings are not currently loaded. Review .pi/settings.json before trusting the project.",
           "warning",
@@ -192,10 +191,9 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     }
 
     writeSettings(ctx.cwd, settings);
-    const includeProject = isProjectTrusted(ctx);
-    deps.reloadConfig(ctx.cwd, includeProject);
+    deps.reloadConfigForContext(ctx);
     ctx.ui.notify(`Updated ${key}`, "info");
-    if (!includeProject) {
+    if (!isProjectTrusted(ctx)) {
       ctx.ui.notify(
         "Project is not trusted, so project-local auto-mode settings are not currently loaded. Review .pi/settings.json before trusting the project.",
         "warning",
