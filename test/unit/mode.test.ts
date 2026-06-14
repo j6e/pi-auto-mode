@@ -72,6 +72,10 @@ describe("createModeManager", () => {
     } as unknown as ExtensionAPI;
   }
 
+  function makeResolveEffectiveConfig(defaultMode: PermissionMode) {
+    return vi.fn().mockReturnValue({ config: { defaultMode }, includesProject: false });
+  }
+
   function makeMockCtx(modeEntries: unknown[] = []): ExtensionContext {
     const entries = modeEntries.map((data) => ({
       type: "custom",
@@ -94,7 +98,7 @@ describe("createModeManager", () => {
 
   it("registers flag, command, and shortcut on setup", () => {
     const pi = makeMockPi();
-    const manager = createModeManager(pi, "off");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
 
     expect(pi.registerFlag).toHaveBeenCalledWith("auto-mode", {
@@ -108,7 +112,7 @@ describe("createModeManager", () => {
 
   it("initializes mode from fallback chain on session_start", () => {
     const pi = makeMockPi("auto");
-    const manager = createModeManager(pi, "off");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -122,7 +126,7 @@ describe("createModeManager", () => {
 
   it("forces mode to off in non-interactive mode without explicit flag", () => {
     const pi = makeMockPi(); // no flag
-    const manager = createModeManager(pi, "auto");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("auto"));
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -135,13 +139,10 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("off");
   });
 
-  it("reloads trusted project config before forcing non-interactive mode off", () => {
+  it("resolves trusted project config before forcing non-interactive mode off", () => {
     const pi = makeMockPi(); // no flag
-    const reloadConfigForContext = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
-    const manager = createModeManager(pi, "auto", {
-      getEffectiveConfig: vi.fn().mockReturnValue({ config: { defaultMode: "off" }, includesProject: false }),
-      reloadConfigForContext,
-    } as any);
+    const resolveEffectiveConfig = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
+    const manager = createModeManager(pi, resolveEffectiveConfig as any);
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -152,13 +153,13 @@ describe("createModeManager", () => {
     const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
     sessionStartHandler({}, ctx);
 
-    expect(reloadConfigForContext).toHaveBeenCalledWith(ctx);
+    expect(resolveEffectiveConfig).toHaveBeenCalledWith(ctx);
     expect(manager.getMode()).toBe("off");
   });
 
   it("restores mode from active branch and ignores later abandoned branch state", () => {
     const pi = makeMockPi();
-    const manager = createModeManager(pi, "off");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -178,13 +179,10 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("auto");
   });
 
-  it("reloads config from project context before resolving initial mode", () => {
+  it("resolves config from project context before resolving initial mode", () => {
     const pi = makeMockPi();
-    const reloadConfigForContext = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
-    const manager = createModeManager(pi, "off", {
-      getEffectiveConfig: vi.fn().mockReturnValue({ config: { defaultMode: "off" }, includesProject: false }),
-      reloadConfigForContext,
-    } as any);
+    const resolveEffectiveConfig = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
+    const manager = createModeManager(pi, resolveEffectiveConfig as any);
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -194,13 +192,13 @@ describe("createModeManager", () => {
     const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
     sessionStartHandler({}, ctx);
 
-    expect(reloadConfigForContext).toHaveBeenCalledWith(ctx);
+    expect(resolveEffectiveConfig).toHaveBeenCalledWith(ctx);
     expect(manager.getMode()).toBe("dontAsk");
   });
 
   it("falls back to settings default when only an abandoned branch has auto-mode state", () => {
     const pi = makeMockPi();
-    const manager = createModeManager(pi, "dontAsk");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("dontAsk"));
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -219,7 +217,7 @@ describe("createModeManager", () => {
 
   it("persists mode change via appendEntry and updates footer", () => {
     const pi = makeMockPi();
-    const manager = createModeManager(pi, "off");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
 
     const ctx = makeMockCtx([]);
@@ -235,7 +233,7 @@ describe("createModeManager", () => {
 
   it("cycles mode on command or shortcut invocation", () => {
     const pi = makeMockPi();
-    const manager = createModeManager(pi, "off");
+    const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
 
     const ctx = makeMockCtx([]);

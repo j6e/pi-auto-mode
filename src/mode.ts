@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { EffectiveConfigResult } from "./effective-config";
 import type { PermissionMode } from "./types";
-import { handleAutoModeCommand, type EffectiveConfigResult } from "./config-command";
+import { handleAutoModeCommand } from "./config-command";
 import { getActiveAutoModeStateEntries } from "./session-context";
 
 const MODES: PermissionMode[] = ["off", "auto", "dontAsk"];
@@ -52,11 +53,7 @@ export interface ModeManager {
 
 export function createModeManager(
   pi: ExtensionAPI,
-  settingsDefault: PermissionMode,
-  configDeps?: {
-    getEffectiveConfig(ctx: ExtensionContext): EffectiveConfigResult;
-    reloadConfigForContext(ctx: ExtensionContext): EffectiveConfigResult;
-  },
+  resolveEffectiveConfig: (ctx: ExtensionContext) => EffectiveConfigResult,
 ): ModeManager {
   let currentMode: PermissionMode = "off";
 
@@ -94,9 +91,8 @@ export function createModeManager(
             persistAndUpdate(cycleMode(currentMode), ctx);
             return;
           }
-          if (!configDeps) return;
           await handleAutoModeCommand(String(args), ctx, {
-            ...configDeps,
+            resolveEffectiveConfig,
             getMode: () => currentMode,
             setMode: (mode, commandCtx) => persistAndUpdate(mode, commandCtx),
           });
@@ -113,7 +109,7 @@ export function createModeManager(
       pi.on("session_start", async (_event, ctx) => {
         const flagValue = pi.getFlag("auto-mode");
 
-        const effectiveConfig = configDeps?.reloadConfigForContext(ctx).config ?? { defaultMode: settingsDefault };
+        const effectiveConfig = resolveEffectiveConfig(ctx).config;
 
         // In non-interactive mode without explicit flag, force off
         if (!ctx.hasUI && !flagValue) {

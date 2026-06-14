@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { EffectiveConfigResult } from "./effective-config";
 import type { AutoModeSettings, PermissionMode, ResolvedConfig } from "./types";
 import { isValidMode } from "./mode";
 
@@ -116,14 +117,8 @@ function notifyUntrustedWrite(ctx: ExtensionContext) {
   );
 }
 
-export interface EffectiveConfigResult {
-  config: ResolvedConfig;
-  includesProject: boolean;
-}
-
 export interface AutoModeCommandDeps {
-  getEffectiveConfig(ctx: ExtensionContext): EffectiveConfigResult;
-  reloadConfigForContext(ctx: ExtensionContext): EffectiveConfigResult;
+  resolveEffectiveConfig(ctx: ExtensionContext): EffectiveConfigResult;
   getMode(): PermissionMode;
   setMode(mode: PermissionMode, ctx: ExtensionContext): void;
 }
@@ -135,7 +130,7 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
   try {
     if (!first || first === "cycle") return;
     if (first === "status") {
-      const { config } = deps.getEffectiveConfig(ctx);
+      const { config } = deps.resolveEffectiveConfig(ctx);
       ctx.ui.notify(`Mode: ${deps.getMode()}\n\nEffective config:\n${formatStatusConfig(config)}`, "info");
       return;
     }
@@ -148,7 +143,7 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (first !== "config") throw new Error("usage: /auto-mode [status|set|config]");
 
     if (!second) {
-      const { config } = deps.getEffectiveConfig(ctx);
+      const { config } = deps.resolveEffectiveConfig(ctx);
       ctx.ui.notify(format(config), "info");
       return;
     }
@@ -161,7 +156,7 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (!key) throw new Error("usage: /auto-mode config <get|set|add|remove|reset> <key> [value]");
 
     if (second === "get") {
-      const { config } = deps.getEffectiveConfig(ctx);
+      const { config } = deps.resolveEffectiveConfig(ctx);
       ctx.ui.notify(JSON.stringify(getPath(config, key), null, 2), "info");
       return;
     }
@@ -172,7 +167,7 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     if (second === "reset") {
       deletePath(autoMode, key);
       writeSettings(ctx.cwd, settings);
-      const { includesProject } = deps.reloadConfigForContext(ctx);
+      const { includesProject } = deps.resolveEffectiveConfig(ctx);
       ctx.ui.notify(`Reset ${key}`, "info");
       if (!includesProject) notifyUntrustedWrite(ctx);
       return;
@@ -200,7 +195,7 @@ export async function handleAutoModeCommand(args: string, ctx: ExtensionContext,
     }
 
     writeSettings(ctx.cwd, settings);
-    const { includesProject } = deps.reloadConfigForContext(ctx);
+    const { includesProject } = deps.resolveEffectiveConfig(ctx);
     ctx.ui.notify(`Updated ${key}`, "info");
     if (!includesProject) notifyUntrustedWrite(ctx);
   } catch (error) {

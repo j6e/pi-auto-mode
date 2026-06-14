@@ -36,7 +36,7 @@ function makeCtx(hasUI = true): ExtensionContext {
 
 describe("createDenyContinueManager", () => {
   it("builds a rich denial message with reason and retry guidance", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     const msg = manager.buildDenialMessage("Too dangerous");
     expect(msg).toContain("Too dangerous");
     expect(msg).toContain("permission gate");
@@ -44,14 +44,14 @@ describe("createDenyContinueManager", () => {
   });
 
   it("tracks blocked tool calls by ID", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "Bad command");
     expect(manager.isBlocked("tc-1")).toBe(true);
     expect(manager.getReason("tc-1")).toBe("Bad command");
   });
 
   it("increments consecutive and total on block", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
     expect(manager.getConsecutiveDenials()).toBe(1);
     expect(manager.getTotalDenials()).toBe(1);
@@ -61,7 +61,7 @@ describe("createDenyContinueManager", () => {
   });
 
   it("resets consecutive on allow", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
     manager.recordBlock("tc-2", "B");
     expect(manager.getConsecutiveDenials()).toBe(2);
@@ -71,24 +71,26 @@ describe("createDenyContinueManager", () => {
   });
 
   it("detects consecutive threshold breach", () => {
-    const manager = createDenyContinueManager(makeConfig({ maxConsecutiveDenials: 2 }));
+    const config = makeConfig({ maxConsecutiveDenials: 2 });
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
-    expect(manager.isThresholdBreached()).toBe(false);
+    expect(manager.isThresholdBreached(config)).toBe(false);
     manager.recordBlock("tc-2", "B");
-    expect(manager.isThresholdBreached()).toBe(true);
+    expect(manager.isThresholdBreached(config)).toBe(true);
   });
 
   it("detects total threshold breach", () => {
-    const manager = createDenyContinueManager(makeConfig({ maxTotalDenials: 2 }));
+    const config = makeConfig({ maxTotalDenials: 2 });
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
-    expect(manager.isThresholdBreached()).toBe(false);
+    expect(manager.isThresholdBreached(config)).toBe(false);
     manager.recordAllow(); // reset consecutive
     manager.recordBlock("tc-2", "B");
-    expect(manager.isThresholdBreached()).toBe(true);
+    expect(manager.isThresholdBreached(config)).toBe(true);
   });
 
   it("resets all counters on new session", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
     manager.recordBlock("tc-2", "B");
     manager.reset();
@@ -98,7 +100,7 @@ describe("createDenyContinueManager", () => {
   });
 
   it("clears tracking when consuming a blocked result", () => {
-    const manager = createDenyContinueManager(makeConfig());
+    const manager = createDenyContinueManager();
     manager.recordBlock("tc-1", "A");
     expect(manager.isBlocked("tc-1")).toBe(true);
     manager.consumeBlocked("tc-1");
@@ -108,12 +110,13 @@ describe("createDenyContinueManager", () => {
 
 describe("threshold escalation", () => {
   it("prompts user in interactive mode when threshold is breached", async () => {
-    const manager = createDenyContinueManager(makeConfig({ maxConsecutiveDenials: 1 }));
+    const config = makeConfig({ maxConsecutiveDenials: 1 });
+    const manager = createDenyContinueManager();
     const ctx = makeCtx(true);
     ctx.ui.confirm = vi.fn().mockResolvedValue(true);
 
     manager.recordBlock("tc-1", "A");
-    const shouldEscalate = manager.isThresholdBreached();
+    const shouldEscalate = manager.isThresholdBreached(config);
     expect(shouldEscalate).toBe(true);
 
     const confirmed = await ctx.ui.confirm("Auto-mode threshold reached", "Allow this action?");
@@ -121,11 +124,12 @@ describe("threshold escalation", () => {
   });
 
   it("terminates in non-interactive mode when threshold is breached", () => {
-    const manager = createDenyContinueManager(makeConfig({ maxConsecutiveDenials: 1 }));
+    const config = makeConfig({ maxConsecutiveDenials: 1 });
+    const manager = createDenyContinueManager();
     const ctx = makeCtx(false);
 
     manager.recordBlock("tc-1", "A");
-    expect(manager.isThresholdBreached()).toBe(true);
+    expect(manager.isThresholdBreached(config)).toBe(true);
 
     // Simulate the shutdown that index.ts would trigger
     ctx.shutdown();

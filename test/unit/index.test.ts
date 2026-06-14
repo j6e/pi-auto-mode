@@ -201,6 +201,47 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
     }
   });
 
+  it("resolves tool-call config from the current context instead of prior trusted loads", async () => {
+    vi.mocked(complete).mockResolvedValue(makeClassifierMessage("Project config is not trusted"));
+
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, ".pi"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpDir, ".pi", "settings.json"),
+        JSON.stringify({ autoMode: { tools: { alwaysAllow: ["bash"] } } }),
+      );
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI("auto");
+      extensionFactory(pi);
+
+      const trustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) as any });
+      await runHandler(pi, "session_start", { reason: "startup" }, trustedCtx);
+
+      const untrustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) as any });
+      await runHandler(pi, "session_start", { reason: "startup" }, untrustedCtx);
+
+      const blockResult = await runToolCall(
+        pi,
+        {
+          type: "tool_call" as const,
+          toolName: "bash" as const,
+          toolCallId: "tc-untrusted-bash",
+          input: { command: "echo should classify" },
+        },
+        untrustedCtx,
+      );
+
+      expect(complete).toHaveBeenCalled();
+      expect(blockResult).toEqual({ block: true, reason: expect.stringContaining("Project config is not trusted") });
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("blocks a non-tiered tool in auto mode and replaces the result with a rich denial", async () => {
     vi.mocked(complete).mockResolvedValue(makeClassifierMessage("Dangerous command"));
 
