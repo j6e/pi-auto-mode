@@ -109,8 +109,6 @@ export function createModeManager(
       pi.on("session_start", async (_event, ctx) => {
         const flagValue = pi.getFlag("auto-mode");
 
-        const effectiveConfig = resolveEffectiveConfig(ctx).config;
-
         // In non-interactive mode without explicit flag, force off
         if (!ctx.hasUI && !flagValue) {
           currentMode = "off";
@@ -118,6 +116,7 @@ export function createModeManager(
           return;
         }
 
+        const effectiveConfig = resolveEffectiveConfig(ctx).config;
         const mode = resolveInitialMode(
           flagValue,
           getActiveAutoModeStateEntries(ctx),

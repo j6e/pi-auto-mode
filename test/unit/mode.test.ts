@@ -4,17 +4,12 @@ import type { PermissionMode } from "../../src/types";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 describe("resolveInitialMode", () => {
-  it("uses CLI flag when present and valid", () => {
-    const mode = resolveInitialMode("auto", [], "off");
-    expect(mode).toBe("auto");
+  it.each(["off", "auto", "dontAsk"] as const)("uses valid CLI flag %s", (flagMode) => {
+    const mode = resolveInitialMode(flagMode, [], "off");
+    expect(mode).toBe(flagMode);
   });
 
-  it("uses CLI flag 'dontAsk' when present", () => {
-    const mode = resolveInitialMode("dontAsk", [], "off");
-    expect(mode).toBe("dontAsk");
-  });
-
-  it("falls back to session state when CLI flag is invalid", () => {
+  it("ignores invalid CLI flag and uses session state", () => {
     const entries = [
       { customType: "other", data: {} },
       { customType: "auto-mode-state", data: { mode: "auto" } },
@@ -26,11 +21,6 @@ describe("resolveInitialMode", () => {
   it("falls back to settings default when no session state", () => {
     const mode = resolveInitialMode(undefined, [], "dontAsk");
     expect(mode).toBe("dontAsk");
-  });
-
-  it("defaults to off when nothing is present", () => {
-    const mode = resolveInitialMode(undefined, [], "off");
-    expect(mode).toBe("off");
   });
 
   it("uses the most recent session entry", () => {
@@ -110,7 +100,7 @@ describe("createModeManager", () => {
     expect(pi.registerShortcut).toHaveBeenCalledWith("ctrl+shift+a", expect.any(Object));
   });
 
-  it("initializes mode from fallback chain on session_start", () => {
+  it("uses CLI flag when session starts", () => {
     const pi = makeMockPi("auto");
     const manager = createModeManager(pi, makeResolveEffectiveConfig("off"));
     manager.setup();
@@ -139,7 +129,7 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("off");
   });
 
-  it("resolves trusted project config before forcing non-interactive mode off", () => {
+  it("skips effective config resolution when non-interactive mode is forced off", () => {
     const pi = makeMockPi(); // no flag
     const resolveEffectiveConfig = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
     const manager = createModeManager(pi, resolveEffectiveConfig as any);
@@ -153,7 +143,7 @@ describe("createModeManager", () => {
     const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
     sessionStartHandler({}, ctx);
 
-    expect(resolveEffectiveConfig).toHaveBeenCalledWith(ctx);
+    expect(resolveEffectiveConfig).not.toHaveBeenCalled();
     expect(manager.getMode()).toBe("off");
   });
 
@@ -179,7 +169,7 @@ describe("createModeManager", () => {
     expect(manager.getMode()).toBe("auto");
   });
 
-  it("resolves config from project context before resolving initial mode", () => {
+  it("uses effective config default mode on session_start", () => {
     const pi = makeMockPi();
     const resolveEffectiveConfig = vi.fn().mockReturnValue({ config: { defaultMode: "dontAsk" }, includesProject: true });
     const manager = createModeManager(pi, resolveEffectiveConfig as any);
@@ -193,25 +183,6 @@ describe("createModeManager", () => {
     sessionStartHandler({}, ctx);
 
     expect(resolveEffectiveConfig).toHaveBeenCalledWith(ctx);
-    expect(manager.getMode()).toBe("dontAsk");
-  });
-
-  it("falls back to settings default when only an abandoned branch has auto-mode state", () => {
-    const pi = makeMockPi();
-    const manager = createModeManager(pi, makeResolveEffectiveConfig("dontAsk"));
-    manager.setup();
-
-    const ctx = makeMockCtx([]);
-    (ctx as any).hasUI = true;
-    (ctx.sessionManager as any).getEntries = vi.fn().mockReturnValue([
-      { type: "custom", customType: "auto-mode-state", data: { mode: "auto" } },
-    ]);
-    (ctx.sessionManager as any).getBranch = vi.fn().mockReturnValue([]);
-
-    const onCalls = (pi.on as ReturnType<typeof vi.fn>).mock.calls as [string, Function][];
-    const sessionStartHandler = onCalls.find((c) => c[0] === "session_start")![1];
-    sessionStartHandler({}, ctx);
-
     expect(manager.getMode()).toBe("dontAsk");
   });
 

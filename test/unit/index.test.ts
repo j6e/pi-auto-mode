@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createRequire } from "node:module";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -15,6 +16,9 @@ vi.mock("@earendil-works/pi-ai", async () => {
 });
 
 import { complete } from "@earendil-works/pi-ai";
+
+const require = createRequire(import.meta.url);
+const nodeFs = require("node:fs") as typeof fs;
 
 function makeMockModel(): Model<any> {
   return {
@@ -153,6 +157,27 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
     vi.mocked(complete).mockReset();
   });
 
+  it("does not read project auto-mode config during extension initialization", () => {
+    const originalCwd = process.cwd();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
+    const readSpy = vi.spyOn(nodeFs, "readFileSync");
+    try {
+      const projectSettingsPath = path.join(tmpDir, ".pi", "settings.json");
+      fs.mkdirSync(path.dirname(projectSettingsPath), { recursive: true });
+      fs.writeFileSync(projectSettingsPath, JSON.stringify({ autoMode: { defaultMode: "auto" } }));
+      process.chdir(tmpDir);
+
+      const pi = createMockExtensionAPI();
+      extensionFactory(pi);
+
+      expect(readSpy).not.toHaveBeenCalledWith(projectSettingsPath, expect.anything());
+    } finally {
+      readSpy.mockRestore();
+      process.chdir(originalCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it("ignores project auto-mode config until the project is trusted", async () => {
     const originalCwd = process.cwd();
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-auto-mode-index-"));
@@ -167,7 +192,7 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
       const pi = createMockExtensionAPI();
       extensionFactory(pi);
 
-      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) as any });
+      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) });
       await runHandler(pi, "session_start", { reason: "startup" }, ctx);
 
       expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: off");
@@ -191,7 +216,7 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
       const pi = createMockExtensionAPI();
       extensionFactory(pi);
 
-      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) as any });
+      const ctx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) });
       await runHandler(pi, "session_start", { reason: "startup" }, ctx);
 
       expect(ctx.ui.setStatus).toHaveBeenCalledWith("auto-mode", "auto-mode: auto");
@@ -217,10 +242,10 @@ describe("integration: end-to-end decision → block → deny-and-continue", () 
       const pi = createMockExtensionAPI("auto");
       extensionFactory(pi);
 
-      const trustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) as any });
+      const trustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(true) });
       await runHandler(pi, "session_start", { reason: "startup" }, trustedCtx);
 
-      const untrustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) as any });
+      const untrustedCtx = createMockContext({ cwd: tmpDir, isProjectTrusted: vi.fn().mockReturnValue(false) });
       await runHandler(pi, "session_start", { reason: "startup" }, untrustedCtx);
 
       const blockResult = await runToolCall(
