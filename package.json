@@ -15,7 +15,6 @@
   "keywords": [
     "pi-package"
   ],
-  "type": "module",
   "files": [
     "src/**/*.ts",
     "README.md"
